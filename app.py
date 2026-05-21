@@ -283,6 +283,11 @@ with chart_col2:
 # SECTION 5: P&ID BLUEPRINT LAYOUT WITH WORD WRAP FIXES
 st.markdown('<h3 class="section-header">📐 V. Schematic P&ID Process Flow Diagram</h3>', unsafe_allow_html=True)
 
+# 🛠️ DYNAMIC GRAPHVIZ STRING INJECTION WITH LITERAL ESAPING FIXES
+remaining_modules = max(1, modules - modules_per_bank)
+label_text = current_ind['label']
+color_hex = current_ind['color']
+
 st.graphviz_chart(f"""
 digraph G {{
     size="12,4.5!";
@@ -319,14 +324,14 @@ digraph G {{
         label="☀️ SOLAR COLLECTOR ROW FIELDS";
         color="#c62828"; style="dashed,rounded"; bgcolor="#fffde7"; fontsize=8;
         Array_A [label="COLLECTOR BANK A\\n({modules_per_bank} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
-        Array_B [label="COLLECTOR BANK B\\n({max(1, modules-modules_per_bank)} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
+        Array_B [label="COLLECTOR BANK B\\n({remaining_modules} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
     }}
 
     Tank [label="🛢 STORAGE TANK\\nTK-101 Buffer\\n({storage_tank_capacity:,.0f} Liters)", shape=cylinder, fillcolor="#fff3cd", color="#f9a825", width=1.3, height=1.4];
     Boiler [label="🔥 AUX BOILER\\nBackup Heating Unit\\n({aux_fuel_type})", fillcolor="#eceff1", color="#37474f"];
     
     # Fixed Text-Wrapping on Final Terminal Application Node
-    Process [label="{current_ind['label']}\\n({tout}°C Plant Process Load)", shape=cds, fillcolor="{current_ind['color']}", color="#1c1c1e", width=2.0];
+    Process [label="{label_text}\\n({tout}°C Plant Process Load)", shape=cds, fillcolor="{color_hex}", color="#1c1c1e", width=2.0];
 
     node [shape=component, width=0.5, height=0.35, fillcolor="#e8f5e9", color="#2e7d32"];
     Pump_P1 [label="Pump P-1\\n(Solar Field)\\n({pump_hp})"];
