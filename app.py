@@ -26,46 +26,46 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏭 SQS Industrial Solar Process Heat (SHIP) Engineering & Proposal Engine")
+st.title("🏭 SQS Industrial Solar Process Heat (SHIP) Sizing & Economic Analyzer")
 st.markdown("---")
 
 # 🖥️ SIDEBAR INPUTS
-st.sidebar.header("🏭 1. Target Application Profile")
+st.sidebar.header("🏭 1. Application & Industry Type")
 industry_type = st.sidebar.selectbox(
-    "Industrial Sector Selector", 
+    "Select Industrial Sector", 
     ["Dairy Plant (Pasteurization/CIP)", "Textile Dyeing Mills", "Pharmaceutical Synthesis", "Thermal Power Pre-Heating", "Chemical Processing Tank"]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.header("🎯 2. Primary Thermodynamic Inputs")
-water = st.sidebar.number_input("Daily Hot Water Target (Liters per Day)", value=8000, step=500, min_value=500)
-tout = st.sidebar.number_input("Process Target Delivery Temp (Tout °C)", value=90, min_value=30, max_value=100)
-tin = st.sidebar.number_input("Plant Supply Feed Inlet Temp (Tin °C)", value=25, min_value=5, max_value=50)
+st.sidebar.header("🎯 2. Process Design Thermal Load")
+water = st.sidebar.number_input("Daily Water Consumption (Liters/Day)", value=8000, step=500, min_value=500)
+tout = st.sidebar.number_input("Required Process Delivery Temp (Tout °C)", value=90, min_value=30, max_value=100)
+tin = st.sidebar.number_input("Initial Water Inlet Temp (Tin °C)", value=25, min_value=5, max_value=50)
 
 st.sidebar.markdown("---")
-st.sidebar.header("🌍 3. Meteorological & Site Metrics")
-latitude = st.sidebar.number_input("Site Latitude (Decimal Degrees)", value=23.5, min_value=0.0, max_value=60.0, step=0.5)
-wind_speed = st.sidebar.slider("Ambient Wind Velocity (m/s)", min_value=0.5, max_value=10.0, value=3.0, step=0.1)
-ambient_temp = st.sidebar.slider("Design Ambient Temperature (°C)", min_value=0, max_value=45, value=25, step=1)
+st.sidebar.header("🌍 3. Site Weather Data")
+latitude = st.sidebar.number_input("Local Site Latitude (Degrees)", value=23.5, min_value=0.0, max_value=60.0, step=0.5)
+wind_speed = st.sidebar.slider("Design Wind Velocity (m/s)", min_value=0.5, max_value=10.0, value=3.0, step=0.1)
+ambient_temp = st.sidebar.slider("Design Ambient Temp (°C)", min_value=0, max_value=45, value=25, step=1)
 
 st.sidebar.markdown("---")
-st.sidebar.header("⚙️ 4. Plant Balance of Plant (BOP) Variables")
-pipe_loss_factor = st.sidebar.slider("Thermal Distribution Pipe Loss (%)", min_value=2, max_value=15, value=5, step=1)
-tank_safety_margin = st.sidebar.slider("Storage Thermal Buffering Factor", min_value=1.1, max_value=1.4, value=1.20, step=0.05)
-aux_fuel_type = st.sidebar.selectbox("Existing Backup Utility Boiler Fuel", ["Furnace Oil (FO)", "Diesel (HSD)", "Natural Gas", "Electricity"])
+st.sidebar.header("⚙️ 4. Balance of Plant (BOP) Constants")
+pipe_loss_factor = st.sidebar.slider("Estimated Piping Thermal Loss (%)", min_value=2, max_value=15, value=5, step=1)
+tank_safety_margin = st.sidebar.slider("Storage Tank Safety Factor", min_value=1.1, max_value=1.4, value=1.20, step=0.05)
+aux_fuel_type = st.sidebar.selectbox("Backup Boiler Fuel Type", ["Furnace Oil (FO)", "Diesel (HSD)", "Natural Gas", "Electricity"])
 
 st.sidebar.markdown("---")
-st.sidebar.header("💰 5. Commercial Tariff & Capex Metrics")
-fuel_cost = st.sidebar.number_input("Backup Fuel Base Cost (₹ per Unit)", value=85.0, step=5.0)
-project_cost_per_m2 = st.sidebar.number_input("Turnkey Turn-key EPC Rate (₹ per m²)", value=14000, step=500)
+st.sidebar.header("💰 5. Fuel Cost & Investment Rates")
+fuel_cost = st.sidebar.number_input("Current Fuel Price (₹ / Unit)", value=85.0, step=5.0)
+project_cost_per_m2 = st.sidebar.number_input("Estimated Turnkey Cost (₹ / m²)", value=14000, step=500)
 
 # 🏭 INDUSTRY DYNAMIC CONFIGURATION MAPPING
 industry_specs = {
-    "Dairy Plant (Pasteurization/CIP)": {"label": "🍼 DAIRY PROCESS LOAD\\n(CIP & Pasteurizer)", "color": "#2196f3", "note": "Requires sanitary tri-clover fittings with standard food-grade SS316L secondary isolations."},
-    "Textile Dyeing Mills": {"label": "🧵 TEXTILE DYE BATHS\\n(Jet & Winch Machine)", "color": "#9c27b0", "note": "High constant mass-flow dump loop profile. Consider localized heat recovery options."},
-    "Pharmaceutical Synthesis": {"label": "💊 PHARMA REACTOR\\n(Jacket Vessel Heating)", "color": "#009688", "note": "Class 100/FDA validation track compliance framework. Ultra-tight temperature hysteresis tracking."},
-    "Thermal Power Pre-Heating": {"label": "⚡ THERMAL POWER PLT\\n(Deaerator Feedwater)", "color": "#ff9800", "note": "High static operating pressures. Demineralized feed loops mandate special execution alloys."},
-    "Chemical Processing Tank": {"label": "⚗️ CHEMICAL PROCESS\\n(Batch Wash Reactor)", "color": "#e53935", "note": "Explosion-proof hazardous location components mandated (ATEX Zone 1/2 classifications)."}
+    "Dairy Plant (Pasteurization/CIP)": {"label": "🍼 DAIRY PLANT LOAD\\n(Pasteurization & CIP)", "color": "#2196f3", "note": "Uses food-grade sanitary SS316L heat exchangers for product isolation."},
+    "Textile Dyeing Mills": {"label": "🧵 TEXTILE DYEING MILLS\\n(Dye Bath Pre-Heating)", "color": "#9c27b0", "note": "High continuous volume process. Ideal for baseline heat recovery integration."},
+    "Pharmaceutical Synthesis": {"label": "💊 PHARMACEUTICAL REACTOR\\n(Jacket Heating Loop)", "color": "#009688", "note": "Strict FDA-compliant clean piping layouts with precise temperature control loops."},
+    "Thermal Power Pre-Heating": {"label": "⚡ THERMAL POWER PLANT\\n(Deaerator Feedwater Pre-Heat)", "color": "#ff9800", "note": "High-pressure operating design. Demineralized feed water requires specialized alloys."},
+    "Chemical Processing Tank": {"label": "⚗️ CHEMICAL PROCESS TANK\\n(Batch Reaction Heating)", "color": "#e53935", "note": "Explosion-proof components and hazardous area classifications are standard."}
 }
 current_ind = industry_specs[industry_type]
 
@@ -158,74 +158,74 @@ roi_percent = (annual_monetary_savings / turnkey_capex) * 100 if turnkey_capex >
 # =========================================================
 
 # SECTION 1: ENGINEERING CALCULATIONS TIER
-st.markdown('<h3 class="section-header">🧮 I. Primary Engineering Sizing Calculations</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-header">🧮 I. Engineering Sizing Calculations</h3>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #e63946;"><div class="metric-title">🔥 NET THERMAL LOAD</div><div class="metric-value">⚡ {net_energy_demand:.1f} <span style="font-size:12px;">kWh/D</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #e63946;"><div class="metric-title">NET ENERGY REQUIRED</div><div class="metric-value">⚡ {net_energy_demand:.1f} <span style="font-size:12px;">kWh/Day</span></div></div>', unsafe_allow_html=True)
 with c2:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #2a9d8f;"><div class="metric-title">🧱 CALCULATED MODULES</div><div class="metric-value">🧩 {modules} <span style="font-size:12px;">Units</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #2a9d8f;"><div class="metric-title">TOTAL SOLAR MODULES</div><div class="metric-value">🧩 {modules} <span style="font-size:12px;">Units</span></div></div>', unsafe_allow_html=True)
 with c3:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #f4a261;"><div class="metric-title">📐 GROSS COLLECTOR AREA</div><div class="metric-value">🗺️ {total_collector_area:.1f} <span style="font-size:12px;">m²</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #f4a261;"><div class="metric-title">TOTAL COLLECTOR AREA</div><div class="metric-value">📐 {total_collector_area:.1f} <span style="font-size:12px;">m²</span></div></div>', unsafe_allow_html=True)
 with c4:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #457b9d;"><div class="metric-title">🌡️ LOSS COEFFICIENT (UL)</div><div class="metric-value">📉 {u_total_loss:.2f} <span style="font-size:12px;">W/m²K</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #457b9d;"><div class="metric-title">HEAT LOSS COEFFICIENT (UL)</div><div class="metric-value">🌡️ {u_total_loss:.2f} <span style="font-size:12px;">W/m²K</span></div></div>', unsafe_allow_html=True)
 
 # SECTION 2: HYDRAULIC DESIGN SUGGESTIONS
-st.markdown('<h3 class="section-header">⚙️ II. Hydraulic Field Design & Balance of Plant (BOP) Guidelines</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-header">⚙️ II. Hydraulic Design & System Specifications</h3>', unsafe_allow_html=True)
 b1, b2, b3 = st.columns(3)
 with b1:
     st.markdown(f"""
     <div class="card-box" style="border-left: 4px solid #fff3cd;">
-        <h4 style="margin-top:0; margin-bottom:5px; color:#b58900; font-size:14px;">📦 Thermal Storage Specification</h4>
+        <h4 style="margin-top:0; margin-bottom:5px; color:#b58900; font-size:14px;">📦 Thermal Storage Tank</h4>
         <div style="background-color:#fff3cd; padding:4px; border-radius:4px; font-weight:bold; color:#856404; text-align:center; margin-bottom:8px; font-size:12px;">
-            Target Vol: {storage_tank_capacity:,.0f} Liters
+            Tank Volume: {storage_tank_capacity:,.0f} Liters
         </div>
         <span style="font-size:12px;">
-        • <b>Vessel Metallurgy:</b> Double-Wall Stainless Steel (SS316L / SS304).<br>
-        • <b>Thermal Retention:</b> 100mm PUF insulation cladding layer (&lt;1.8°C/24h drops).
+        • <b>Material Spec:</b> Stainless Steel insulated vessel (SS304 or SS316L).<br>
+        • <b>Thermal Retention:</b> Rockwool or PUF insulation to keep heat loss below 2°C per day.
         </span>
     </div>
     """, unsafe_allow_html=True)
 with b2:
     st.markdown(f"""
     <div class="card-box" style="border-left: 4px solid #f8d7da;">
-        <h4 style="margin-top:0; margin-bottom:5px; color:#d9534f; font-size:14px;">🗺️ Pipe Sizing & Loop Balancing</h4>
+        <h4 style="margin-top:0; margin-bottom:5px; color:#d9534f; font-size:14px;">🗺️ Piping Layout & Field Balancing</h4>
         <div style="background-color:#f8d7da; padding:4px; border-radius:4px; font-weight:bold; color:#721c24; text-align:center; margin-bottom:8px; font-size:12px;">
-            Primary Header Sizing: {pipe_size_dn} Schedule-40
+            Main Header Pipe Size: {pipe_size_dn}
         </div>
         <span style="font-size:12px;">
-        • <b>Hydraulic Splits:</b> Array structured into {total_banks} parallel banks.<br>
-        • <b>Balancing Logic:</b> Reverse-return piping scheme with calibrated balancing valves.
+        • <b>Field Configuration:</b> Arranged in {total_banks} parallel rows to avoid high pressure drops.<br>
+        • <b>Flow Balancing:</b> Reverse-return loop setup ensures uniform flow across all modules.
         </span>
     </div>
     """, unsafe_allow_html=True)
 with b3:
     st.markdown(f"""
     <div class="card-box" style="border-left: 4px solid #d4edda;">
-        <h4 style="margin-top:0; margin-bottom:5px; color:#5cb85c; font-size:14px;">🎛️ Circulation & Pumping Station</h4>
+        <h4 style="margin-top:0; margin-bottom:5px; color:#5cb85c; font-size:14px;">🎛️ Circulation Pumping Station</h4>
         <div style="background-color:#d4edda; padding:4px; border-radius:4px; font-weight:bold; color:#155724; text-align:center; margin-bottom:8px; font-size:12px;">
             Flow Capacity: {flow_lpm:.1f} LPM @ {pump_hp}
         </div>
         <span style="font-size:12px;">
-        • <b>Automation:</b> Modulating variable frequency drive (VFD) via delta-T control.<br>
-        • <b>Sector Integration Note:</b> {current_ind['note']}
+        • <b>Control Strategy:</b> Variable Frequency Drive (VFD) pump matching the daily solar cycle.<br>
+        • <b>Plant Notes:</b> {current_ind['note']}
         </span>
     </div>
     """, unsafe_allow_html=True)
 
 # SECTION 3: ECONOMIC ANALYSIS
-st.markdown('<h3 class="section-header">💰 III. Capital Project Economic Analysis</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-header">💰 III. Financial & Economic Analysis</h3>', unsafe_allow_html=True)
 f1, f2, f3, f4 = st.columns(4)
 with f1:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #1d3557;"><div class="metric-title">🏗️ PROJECT EPC CAPEX</div><div class="metric-value">₹ {turnkey_capex:,.0f}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #1d3557;"><div class="metric-title">ESTIMATED CAPITAL COST (CAPEX)</div><div class="metric-value">₹ {turnkey_capex:,.0f}</div></div>', unsafe_allow_html=True)
 with f2:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #2a9d8f;"><div class="metric-title">📉 ANNUAL OPEX SAVINGS</div><div class="metric-value">₹ {annual_monetary_savings:,.0f}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #2a9d8f;"><div class="metric-title">ANNUAL FUEL COST SAVINGS</div><div class="metric-value">₹ {annual_monetary_savings:,.0f}</div></div>', unsafe_allow_html=True)
 with f3:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #e9c46a;"><div class="metric-title">⏳ SIMPLE PAYBACK</div><div class="metric-value">{simple_payback_years:.2f} <span style="font-size:12px;">Years</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #e9c46a;"><div class="metric-title">SIMPLE PAYBACK PERIOD</div><div class="metric-value">{simple_payback_years:.2f} <span style="font-size:12px;">Years</span></div></div>', unsafe_allow_html=True)
 with f4:
-    st.markdown(f'<div class="metric-container" style="border-top-color: #e76f51;"><div class="metric-title">📈 SIMPLE PROJECT ROI</div><div class="metric-value">{roi_percent:.1f} %</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-container" style="border-top-color: #e76f51;"><div class="metric-title">RETURN ON INVESTMENT (ROI)</div><div class="metric-value">{roi_percent:.1f} %</div></div>', unsafe_allow_html=True)
 
 # SECTION 4: DIAGNOSTIC GRAPHS WITH REGRESSION INTEGRATION
-st.markdown('<h3 class="section-header">📊 IV. Process Performance Curves & Multiple Regression Datapoints</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-header">📊 IV. Performance Curves & Solar Radiation Data</h3>', unsafe_allow_html=True)
 chart_col1, chart_col2 = st.columns(2)
 
 with chart_col1:
@@ -240,12 +240,12 @@ with chart_col1:
     # Mocking multiple regression historical monitoring datapoints
     reg_x = [0.015, 0.032, 0.048, 0.065, 0.082, 0.098]
     reg_y = [74.2, 66.8, 59.1, 51.3, 44.0, 35.6]
-    fig_efficiency.add_trace(go.Scatter(x=reg_x, y=reg_y, mode='markers', name='Multiple Regression Plant Datapoints', marker=dict(color='#2a9d8f', size=7, symbol='circle', opacity=0.75)))
+    fig_efficiency.add_trace(go.Scatter(x=reg_x, y=reg_y, mode='markers', name='Field Calibration Test Points', marker=dict(color='#2a9d8f', size=7, symbol='circle', opacity=0.75)))
     
     fig_efficiency.update_layout(
-        title="🎯 Efficiency Tracking Curve vs. Historical Regression Matrix",
-        xaxis_title="Reduced Temp Variable X_SD [(T_plate - T_amb) / I]",
-        yaxis_title="Thermal Efficiency (η %)",
+        title="🎯 Efficiency Tracking Curve vs. Actual Test Points",
+        xaxis_title="Thermal Parameter X_SD [(T_plate - T_amb) / Irradiance]",
+        yaxis_title="Collector Thermal Efficiency (η %)",
         xaxis=dict(gridcolor='#e9ecef', range=[0, 0.12]),
         yaxis=dict(gridcolor='#e9ecef', range=[0, 100]),
         plot_bgcolor='white', height=250, margin=dict(l=30, r=30, t=40, b=30),
@@ -271,9 +271,9 @@ with chart_col2:
     fig_radiation.add_trace(go.Bar(x=months, y=calculated_radiation_wm2, name='Peak Global Radiation', marker_color='#f4a261', opacity=0.85, marker_line=dict(color='#e76f51', width=1)))
     
     fig_radiation.update_layout(
-        title=f"☀️ Site Clear-Sky Base Radiation Profile Target Range [0 - 1000 W/m²]",
-        xaxis_title="Calendar Operating Month",
-        yaxis_title="Peak Insolation Intensity I (W/m²)",
+        title=f"☀️ Annual Clear-Sky Peak Solar Radiation Profile",
+        xaxis_title="Operating Month",
+        yaxis_title="Available Solar Power Density (W/m²)",
         yaxis=dict(gridcolor='#e9ecef', range=[0, 1000]), 
         plot_bgcolor='white', height=250, margin=dict(l=30, r=30, t=40, b=30)
     )
@@ -281,7 +281,7 @@ with chart_col2:
 
 
 # SECTION 5: P&ID BLUEPRINT LAYOUT WITH WORD WRAP FIXES
-st.markdown('<h3 class="section-header">📐 V. Live Schematic & Process Flow Blueprint (P&ID Based)</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-header">📐 V. Schematic P&ID Process Flow Diagram</h3>', unsafe_allow_html=True)
 
 st.graphviz_chart(f"""
 digraph G {{
@@ -313,35 +313,35 @@ digraph G {{
 
     # Vessels & Equipment Bounding Boxes with Proper Area Spacing & Word Wraps
     node [shape=box, style="filled,rounded", width=1.4, height=0.8, color="#0f52ba", fillcolor="#f8f9fa", fontsize=9];
-    Inlet [label="📥 COLD INLET\\nFeed System\\n({tin}°C Supply)", shape=cds, fillcolor="#e3f2fd"];
+    Inlet [label="📥 WATER SUPPLY\\nInlet Feed\\n({tin}°C Supply)", shape=cds, fillcolor="#e3f2fd"];
     
     subgraph cluster_solar {{
-        label="☀️ SOLAR HARVEST FIELD FIELD ARRAY";
+        label="☀️ SOLAR COLLECTOR ROW FIELDS";
         color="#c62828"; style="dashed,rounded"; bgcolor="#fffde7"; fontsize=8;
-        Array_A [label="BANK A\\n({modules_per_bank} Modules)", fillcolor="#ffebee", color="#e53935", width=1.1, height=0.5];
-        Array_B [label="BANK B\\n({max(1, modules-modules_per_bank)} Modules)", fillcolor="#ffebee", color="#e53935", width=1.1, height=0.5];
+        Array_A [label="COLLECTOR BANK A\\n({modules_per_bank} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
+        Array_B [label="COLLECTOR BANK B\\n({max(1, modules-modules_per_bank)} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
     }}
 
     Tank [label="🛢 STORAGE TANK\\nTK-101 Buffer\\n({storage_tank_capacity:,.0f} Liters)", shape=cylinder, fillcolor="#fff3cd", color="#f9a825", width=1.3, height=1.4];
-    Boiler [label="🔥 BACKUP BOILER\\nThermal Trim Unit\\n({aux_fuel_type})", fillcolor="#eceff1", color="#37474f"];
+    Boiler [label="🔥 AUX BOILER\\nBackup Heating Unit\\n({aux_fuel_type})", fillcolor="#eceff1", color="#37474f"];
     
     # Fixed Text-Wrapping on Final Terminal Application Node
-    Process [label="{current_ind['label']}\\n({tout}°C Delivery Target)", shape=cds, fillcolor="{current_ind['color']}", color="#1c1c1e", width=1.8];
+    Process [label="{current_ind['label']}\\n({tout}°C Plant Process Load)", shape=cds, fillcolor="{current_ind['color']}", color="#1c1c1e", width=2.0];
 
     node [shape=component, width=0.5, height=0.35, fillcolor="#e8f5e9", color="#2e7d32"];
-    Pump_P1 [label="P-1 Loop\\n({pump_hp})"];
-    Pump_P2 [label="P-2 Boiler"];
+    Pump_P1 [label="Pump P-1\\n(Solar Field)\\n({pump_hp})"];
+    Pump_P2 [label="Pump P-2\\n(Utility Load)"];
 
     # Cleaned Formatted Symbol Index Legend Box
     node [shape=plaintext, width=2.2, height=2.5, style=none, color=none];
     LegendIndex [label=<
         <table border="1" cellborder="1" cellspacing="0" cellpadding="3" bgcolor="#ffffff" color="#2c3e50">
-            <tr><td colspan="2" bgcolor="#1d3557"><font color="white" size="2"><b>P&amp;ID CODE INDEX</b></font></td></tr>
+            <tr><td colspan="2" bgcolor="#1d3557"><font color="white" size="2"><b>P&amp;ID LEGEND INDEX</b></font></td></tr>
             <tr><td bgcolor="#e0f7fa"><b>LT / TT</b></td><td align="left">Level / Temp Transmitter</td></tr>
-            <tr><td bgcolor="#fff9c4"><b>TIC</b></td><td align="left">Differential PLC Controller</td></tr>
-            <tr><td bgcolor="#b0bec5"><b>▶◀</b></td><td align="left">Isolation Inline Ball Valve</td></tr>
-            <tr><td bgcolor="#fff3cd"><b>TK101</b></td><td align="left">Thermal Storage Clad Tank</td></tr>
-            <tr><td bgcolor="#e8f5e9"><b>P-1/2</b></td><td align="left">Centrifugal Hydronic Pump</td></tr>
+            <tr><td bgcolor="#fff9c4"><b>TIC</b></td><td align="left">Delta-T Temperature Controller</td></tr>
+            <tr><td bgcolor="#b0bec5"><b>▶◀</b></td><td align="left">Flow Isolation Control Valve</td></tr>
+            <tr><td bgcolor="#fff3cd"><b>TK101</b></td><td align="left">Hot Water Thermal Storage Tank</td></tr>
+            <tr><td bgcolor="#e8f5e9"><b>P-1/2</b></td><td align="left">Centrifugal Circulation Pump</td></tr>
         </table>
     >];
 
@@ -384,15 +384,15 @@ digraph G {{
 """)
 
 # SECTION 6: PROPOSAL SUMMARY MATRIX
-st.markdown('<h3 class="section-header">📋 VI. Enterprise Project Proposal Summary Matrix</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-header">📋 VI. Engineering Project Proposal Summary</h3>', unsafe_allow_html=True)
 st.markdown(f"""
-| Architectural Sizing Attribute | Design Specifications & Telemetry Bounds |
+| System Parameter | Design Values & Target Bounds |
 | :--- | :--- |
-| **Target Manufacturing Sector Profile** | 🏗️ **{industry_type.upper()} FACILITY LINE** |
-| **System Balance Configuration Strategy** | 🔀 `{total_banks} Parallel Banks` containing `{modules_per_bank} Modules` arranged in Series |
-| **Optimal Primary Loop Flow Rate** | 🌊 **{flow_lpm:.1f} LPM** ({flow_kghr:.1f} kg/hour total mass loop velocity) |
-| **Turnkey Asset Investment Expense** | 💳 **₹ {turnkey_capex:,.2f}** (Inclusive of site installation & integration engineering) |
-| **Annualized Utility Fuel Recovery Volume** | 🚰 **{fuel_saved_annual:,.1f} {selected_fuel['unit']}/annum** saved from Boiler ledger offsets |
-| **Net Financial Amortization Horizon** | ⏳ **{simple_payback_years:.2f} Operating Years** until positive break-even threshold |
-| **Environmental Carbon Impact Credit** | 🍃 **{co2_reduction_tons:.1f} Metric Tons of CO₂** permanently offset from annual emission base |
+| **Selected Target Industry** | 🏢 **{industry_type.upper()}** |
+| **Solar Field Field Architecture** | 🔀 `{total_banks} Parallel Rows` with `{modules_per_bank} Modules` connected in series |
+| **Primary Optimal Circuit Flow Rate** | 🌊 **{flow_lpm:.1f} LPM** ({flow_kghr:.1f} kg/hour mass circulation) |
+| **Turnkey Project Investment (CAPEX)** | 💳 **₹ {turnkey_capex:,.2f}** (Complete engineering, procurement, and setup) |
+| **Estimated Fuel Savings per Year** | 🚰 **{fuel_saved_annual:,.1f} {selected_fuel['unit']}/year** reduced from utility boiler usage |
+| **Financial Payback Period** | ⏳ **{simple_payback_years:.2f} Operating Years** to fully recover investment cost |
+| **Annual Carbon Footprint Reduction** | 🍃 **{co2_reduction_tons:.1f} Metric Tons of CO₂** emissions eliminated |
 """, unsafe_allow_html=True)
