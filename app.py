@@ -14,13 +14,14 @@ st.set_page_config(
 )
 
 # Custom Styling
+# FIXED: Changed unsafe_allowed_html to unsafe_allow_html
 st.markdown("""
     <style>
     .main-title { font-size: 32px; font-weight: bold; color: #FF4B4B; margin-bottom: 5px; }
     .subtitle { font-size: 16px; color: #555555; margin-bottom: 25px; }
     .metric-card { background-color: #F8F9FA; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; }
     </style>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
 # Map human-readable profiles to the uploaded files
 REF_FILES = {
@@ -99,8 +100,9 @@ if os.path.exists(filename):
         active_df = df
 
     # App Main Layout Headers
-    st.markdown(f"<div class='main-title'>☀️ Solar Thermal Performance Dashboard</div>", unsafe_allowed_html=True)
-    st.markdown(f"<div class='subtitle'>Visualizing baseline characteristics for <b>{selected_profile}</b> (Source File: {filename})</div>", unsafe_allowed_html=True)
+    # FIXED: Changed unsafe_allowed_html to unsafe_allow_html
+    st.markdown(f"<div class='main-title'>☀️ Solar Thermal Performance Dashboard</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='subtitle'>Visualizing baseline characteristics for <b>{selected_profile}</b> (Source File: {filename})</div>", unsafe_allow_html=True)
 
     # ------------------ KPI CARDS ------------------
     kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
