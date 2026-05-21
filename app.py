@@ -2,8 +2,10 @@ import streamlit as st
 import plotly.graph_objects as go
 import math
 import numpy as np
+import pandas as pd
 
 # 🎨 Premium Compact Styling & Border Matrix Boundaries
+st.set_page_config(layout="wide", page_title="SQS SHIP Analyzer")
 st.markdown("""
     <style>
     .metric-container {
@@ -59,6 +61,43 @@ st.sidebar.header("💰 5. Fuel Cost & Investment Rates")
 fuel_cost = st.sidebar.number_input("Current Fuel Price (₹ / Unit)", value=85.0, step=5.0)
 project_cost_per_m2 = st.sidebar.number_input("Estimated Turnkey Cost (₹ / m²)", value=14000, step=500)
 
+# 📊 6. DATA VALIDATION ENGINE FOR SQS FIELD LOGS
+st.sidebar.markdown("---")
+st.sidebar.header("📊 6. Operational Log Field Validation")
+log_mode = st.sidebar.radio("Validation Data Source", ["Use Pre-loaded SQS Logs", "Upload Custom Log (CSV)", "None (Simulation Only)"])
+
+available_logs = {
+    "Log: 60°C Target (Feb 06, 2026)": "60_06-02-2026_SQS.csv",
+    "Log: 60°C Target (Feb 11, 2026)": "60_11-02-2026_SQS.csv",
+    "Log: 60°C Target (Jan 28, 2026)": "28-01-2026_SQS_Jan28_60.csv",
+    "Log: 70°C Target (Feb 10, 2026)": "70_10-02-2026_SQS.csv",
+    "Log: 70°C Target (Jan 27, 2026)": "27-01-2026_SQS_70.csv",
+    "Log: 80°C Target (Feb 18, 2026)": "80_18-02-2026_SQS.csv",
+    "Log: 80°C Target (Feb 12, 2026)": "80__12-02-2026_SQS.csv",
+    "Log: 80°C Target (Nov 24, 2025)": "80_24-11-2025_SQS.csv",
+    "Log: 80°C Target (Jan 24, 2026)": "24-01-2026_SQS_80.csv",
+    "Log: 90°C Target (Feb 09, 2026)": "90_09-02-2026_SQS_.csv",
+    "Log: 90°C Target (Feb 13, 2026)": "90_13-02-2026_SQS.csv",
+    "Log: 100°C Target (Nov 18, 2025)": "100_18.11.25_SQS.csv",
+    "Log: High Flow Dynamic Test (Feb 16, 2026)": "SQS_16-02-2026.csv",
+    "Log: Fluid Stability Verification (Feb 05, 2026)": "05-02-2026_SQS.csv"
+}
+
+df_log = None
+if log_mode == "Use Pre-loaded SQS Logs":
+    selected_log_label = st.sidebar.selectbox("Choose Field Test Dataset", list(available_logs.keys()))
+    try:
+        df_log = pd.read_csv(available_logs[selected_log_label], encoding='utf-8', errors='ignore')
+    except Exception as e:
+        st.sidebar.warning(f"File log selection idle or unreadable. Error: {e}")
+elif log_mode == "Upload Custom Log (CSV)":
+    uploaded_file = st.sidebar.file_uploader("Upload SQS Operational Log (CSV)", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            df_log = pd.read_csv(uploaded_file, encoding='utf-8', errors='ignore')
+        except Exception as e:
+            st.sidebar.error(f"Error parsing file: {e}")
+
 # 🏭 INDUSTRY DYNAMIC CONFIGURATION MAPPING
 industry_specs = {
     "Dairy Plant (Pasteurization/CIP)": {"label": "🍼 DAIRY PLANT LOAD\\n(Pasteurization & CIP)", "color": "#2196f3", "note": "Uses food-grade sanitary SS316L heat exchangers for product isolation."},
@@ -103,7 +142,7 @@ x_sd_current = (t_plate - ambient_temp) / nominal_irradiance
 
 collector_efficiency = eta_0 - (u_total_loss * x_sd_current)
 collector_efficiency = max(0.35, min(collector_efficiency, 0.75))
-nominal_yield_per_m2 = 4.5 
+nominal_yield_per_m2 = 4.5  
 module_energy = nominal_yield_per_m2 * module_area * collector_efficiency
 
 dt = tout - tin if tout > tin else 1
@@ -157,6 +196,87 @@ turnkey_capex = total_collector_area * project_cost_per_m2
 simple_payback_years = turnkey_capex / annual_monetary_savings if annual_monetary_savings > 0 else 0
 roi_percent = (annual_monetary_savings / turnkey_capex) * 100 if turnkey_capex > 0 else 0
 
+
+# =========================================================
+# 🧪 PARSING FIELD DATA (IF PROVIDED)
+# =========================================================
+log_uploaded = False
+reg_x = [0.015, 0.032, 0.048, 0.065, 0.082, 0.098]
+reg_y = [74.2, 66.8, 59.1, 51.3, 44.0, 35.6]
+log_metrics = {}
+
+def find_flexible_column(col_list, search_keywords):
+    for keyword in search_keywords:
+        for original_col in col_list:
+            if keyword.lower() in original_col.lower():
+                return original_col
+    return None
+
+if df_log is not None:
+    # Stripping hidden characters or ascii encoding artifacts from columns
+    clean_columns = [c.encode('ascii', 'ignore').decode('ascii').strip() for c in df_log.columns]
+    mapping_dict = dict(zip(clean_columns, df_log.columns))
+    
+    xsd_target = find_flexible_column(clean_columns, ['xsd', 'x_sd'])
+    eff_target = find_flexible_column(clean_columns, ['efficiency', 'eta'])
+    irr_target = find_flexible_column(clean_columns, ['it(', 'irradiance', 'radiation'])
+    tout_target = find_flexible_column(clean_columns, ['temp out', 'tout'])
+    tin_target = find_flexible_column(clean_columns, ['temp in', 'tin'])
+    eout_target = find_flexible_column(clean_columns, ['energy output', 'energy_out'])
+    time_target = find_flexible_column(clean_columns, ['time'])
+
+    if xsd_target and eff_target:
+        real_xsd_col = mapping_dict[xsd_target]
+        real_eff_col = mapping_dict[eff_target]
+        
+        # Filtering transient logs or zero/negative performance metrics
+        if irr_target:
+            real_irr_col = mapping_dict[irr_target]
+            filtered_df = df_log[(df_log[real_irr_col] > 150) & (df_log[real_xsd_col].notna()) & (df_log[real_eff_col].notna())].copy()
+        else:
+            filtered_df = df_log[(df_log[real_xsd_col].notna()) & (df_log[real_eff_col].notna())].copy()
+            
+        if not filtered_df.empty:
+            reg_x = filtered_df[real_xsd_col].tolist()
+            raw_eff_values = filtered_df[real_eff_col].tolist()
+            
+            # Auto convert fractions to true % metrics
+            if max(raw_eff_values) <= 1.0:
+                reg_y = [v * 100 for v in raw_eff_values]
+                filtered_df['_eff_pct'] = filtered_df[real_eff_col] * 100
+            else:
+                reg_y = raw_eff_values
+                filtered_df['_eff_pct'] = filtered_df[real_eff_col]
+                
+            log_uploaded = True
+            
+            # Calculating performance matrix metrics
+            log_metrics['avg_eff'] = filtered_df['_eff_pct'].mean()
+            if tout_target:
+                log_metrics['max_tout'] = filtered_df[mapping_dict[tout_target]].max()
+            if eout_target:
+                real_eout = mapping_dict[eout_target]
+                log_metrics['peak_w'] = filtered_df[real_eout].max() / 1000.0
+                
+                # Dynamic Integration of harvested power outputs
+                if time_target:
+                    try:
+                        times_parsed = pd.to_datetime(filtered_df[mapping_dict[time_target]], format='%I:%M:%S %p', errors='coerce')
+                        if times_parsed.isna().all():
+                            times_parsed = pd.to_datetime(filtered_df[mapping_dict[time_target]], errors='coerce')
+                        
+                        sorted_idx = times_parsed.argsort()
+                        sorted_times = times_parsed.iloc[sorted_idx]
+                        sorted_e = filtered_df[real_eout].iloc[sorted_idx]
+                        
+                        delta_hours = sorted_times.diff().dt.total_seconds().fillna(300.0) / 3600.0
+                        log_metrics['harvested_kwh'] = (sorted_e * delta_hours).sum() / 1000.0
+                    except:
+                        log_metrics['harvested_kwh'] = (filtered_df[real_eout].mean() * len(filtered_df) * 5 / 60) / 1000.0
+                else:
+                    log_metrics['harvested_kwh'] = (filtered_df[real_eout].mean() * len(filtered_df) * 5 / 60) / 1000.0
+
+
 # =========================================================
 # 📋 RENDERING UI SECTIONS
 # =========================================================
@@ -198,9 +318,9 @@ with b2:
             Hydraulic Array Layout: {total_banks} Banks Parallel
         </div>
         <span style="font-size:12px;">
-        • <b>Series Density:</b> Modules in Series per Bank: {modules_per_bank} Units.<br>
+        • <b>Series Density:</b> Modules per Bank: {modules_per_bank} Units.<br>
         • <b>Interconnecting Header Piping:</b> {pipe_size_dn} Copper or Composite Piping.<br>
-        • <b>Balancing Valves:</b> Needed on each parallel bank return loop to prevent short-circuiting.
+        • <b>Balancing Valves:</b> Needed on parallel loops to avoid thermal short-circuits.
         </span>
     </div>
     """, unsafe_allow_html=True)
@@ -212,8 +332,8 @@ with b3:
             Primary Loop Pump: {pump_hp} VFD High-Temp Pump
         </div>
         <span style="font-size:12px;">
-        • <b>Differential Temp Controller (DTC):</b> Modulating logic loops based on collector manifold outputs.<br>
-        • <b>Telemetry:</b> RS485 Modbus connectivity matching standard plant SCADA systems.<br>
+        • <b>Differential Temp Controller (DTC):</b> Modulates velocity based on field outputs.<br>
+        • <b>Telemetry:</b> RS485 Modbus connectivity matching plant SCADA interfaces.<br>
         • <b>Plant Notes:</b> {current_ind['note']}
         </span>
     </div>
@@ -231,53 +351,104 @@ with f3:
 with f4:
     st.markdown(f'<div class="metric-container" style="border-top-color: #e76f51;"><div class="metric-title">INTERNAL RATE OF RETURN (ROI)</div><div class="metric-value">{roi_percent:.1f} %</div></div>', unsafe_allow_html=True)
 
-# SECTION 4: DIAGNOSTIC GRAPHS WITH NASA METEOROLOGICAL RAD DATA
+# SECTION 4: DIAGNOSTIC GRAPHS (WITH DYNAMIC LOG INTEGRATION)
 st.markdown('<h3 class="section-header">📊 IV. Performance Curves & Solar Radiation Data</h3>', unsafe_allow_html=True)
-chart_col1, chart_col2 = st.columns(2)
 
-with chart_col1:
-    x_vals = np.linspace(0, 0.12, 100)
-    eta_vals = (eta_0 - (u_total_loss * x_vals)) * 100
-    eta_vals = np.clip(eta_vals, 5.0, 85.0)
-    
-    fig_efficiency = go.Figure()
-    fig_efficiency.add_trace(go.Scatter(x=x_vals, y=eta_vals, mode='lines', name='Theoretical Efficiency Curve', line=dict(color='#0f52ba', width=2.5)))
-    fig_efficiency.add_trace(go.Scatter(x=[x_sd_current], y=[collector_efficiency * 100], mode='markers+text', name='Calculated Design Point', text=[f"Design Target ({collector_efficiency*100:.1f}%)"], textposition="top right", marker=dict(color='#e63946', size=11, symbol='diamond', line=dict(color='black', width=1.5))))
-    
-    reg_x = [0.015, 0.032, 0.048, 0.065, 0.082, 0.098]
-    reg_y = [74.2, 66.8, 59.1, 51.3, 44.0, 35.6]
-    fig_efficiency.add_trace(go.Scatter(x=reg_x, y=reg_y, mode='markers', name='Field Calibration Test Points', marker=dict(color='#2a9d8f', size=7, symbol='circle', opacity=0.75)))
-    
-    fig_efficiency.update_layout(
-        title="🎯 Efficiency Tracking Curve vs. Actual Test Points",
-        xaxis_title="Thermal Parameter X_SD [(T_plate - T_amb) / Irradiance]",
-        yaxis_title="Collector Thermal Efficiency (η %)",
-        xaxis=dict(gridcolor='#e9ecef', range=[0, 0.12]),
-        yaxis=dict(gridcolor='#e9ecef', range=[0, 100]),
-        plot_bgcolor='white', height=250, margin=dict(l=30, r=30, t=40, b=30),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9))
-    )
-    st.plotly_chart(fig_efficiency, use_container_width=True)
+tab_curves, tab_diagnostics = st.tabs(["🎯 Sizing & Design Curves", "🔬 Field Log Time-Series Diagnostics"])
 
-with chart_col2:
-    fig_radiation = go.Figure()
-    fig_radiation.add_trace(go.Bar(x=months, y=measured_radiation, name='Ground-Measured GHI Profile', marker_color='#f4a261', opacity=0.85, marker_line=dict(color='#e76f51', width=1)))
-    
-    fig_radiation.update_layout(
-        title=f"☀️ Accurate Meteorological Daily Solar GHI Profile",
-        xaxis_title="Operating Month",
-        yaxis_title="Global Horizontal Radiation (kWh/m²/day)",
-        yaxis=dict(gridcolor='#e9ecef', range=[0, 9]), 
-        plot_bgcolor='white', height=250, margin=dict(l=30, r=30, t=40, b=30)
-    )
-    st.plotly_chart(fig_radiation, use_container_width=True)
+with tab_curves:
+    chart_col1, chart_col2 = st.columns(2)
+    with chart_col1:
+        x_vals = np.linspace(0, 0.12, 100)
+        eta_vals = (eta_0 - (u_total_loss * x_vals)) * 100
+        eta_vals = np.clip(eta_vals, 5.0, 85.0)
+        
+        fig_efficiency = go.Figure()
+        fig_efficiency.add_trace(go.Scatter(x=x_vals, y=eta_vals, mode='lines', name='Theoretical Efficiency Curve', line=dict(color='#0f52ba', width=2.5)))
+        fig_efficiency.add_trace(go.Scatter(x=[x_sd_current], y=[collector_efficiency * 100], mode='markers+text', name='Calculated Design Point', text=[f"Design Target ({collector_efficiency*100:.1f}%)"], textposition="top right", marker=dict(color='#e63946', size=11, symbol='diamond', line=dict(color='black', width=1.5))))
+        
+        marker_name = 'Field Log Points (Active Data)' if log_uploaded else 'Sample Calibration Test Points'
+        fig_efficiency.add_trace(go.Scatter(x=reg_x, y=reg_y, mode='markers', name=marker_name, marker=dict(color='#2a9d8f', size=6 if log_uploaded else 7, symbol='circle', opacity=0.6 if log_uploaded else 0.8)))
+        
+        fig_efficiency.update_layout(
+            title="🎯 Collector Thermal Efficiency Tracking Curve",
+            xaxis_title="Thermal Parameter X_SD [(T_plate - T_amb) / Irradiance]",
+            yaxis_title="Collector Thermal Efficiency (η %)",
+            xaxis=dict(gridcolor='#e9ecef', range=[0, 0.12]),
+            yaxis=dict(gridcolor='#e9ecef', range=[0, 100]),
+            plot_bgcolor='white', height=280, margin=dict(l=30, r=30, t=40, b=30),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9))
+        )
+        st.plotly_chart(fig_efficiency, use_container_width=True)
 
-# SECTION 5: P&ID BLUEPRINT LAYOUT (Fully Rewired to Dynamic State Environment)
+    with chart_col2:
+        fig_radiation = go.Figure()
+        fig_radiation.add_trace(go.Bar(x=months, y=measured_radiation, name='Ground GHI Profile', marker_color='#f4a261', opacity=0.85, marker_line=dict(color='#e76f51', width=1)))
+        fig_radiation.update_layout(
+            title="☀️ Accurate Regional Meteorological Daily Solar GHI Profile",
+            xaxis_title="Operating Month",
+            yaxis_title="Global Horizontal Radiation (kWh/m²/day)",
+            yaxis=dict(gridcolor='#e9ecef', range=[0, 9]), 
+            plot_bgcolor='white', height=280, margin=dict(l=30, r=30, t=40, b=30)
+        )
+        st.plotly_chart(fig_radiation, use_container_width=True)
+
+with tab_diagnostics:
+    if log_uploaded:
+        st.markdown("#### 🚀 Log File Operational Metadata Matrix")
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.markdown(f'<div class="metric-container" style="border-top-color: #00bcd4;"><div class="metric-title">LOGGED AVG EFFICIENCY</div><div class="metric-value">⏱️ {log_metrics.get("avg_eff", 0):.1f}%</div></div>', unsafe_allow_html=True)
+        with m2:
+            st.markdown(f'<div class="metric-container" style="border-top-color: #ff5722;"><div class="metric-title">PEAK DISCHARGE TEMP</div><div class="metric-value">🌡️ {log_metrics.get("max_tout", 0):.1f} °C</div></div>', unsafe_allow_html=True)
+        with m3:
+            st.markdown(f'<div class="metric-container" style="border-top-color: #4caf50;"><div class="metric-title">LOGGED HEAT HARVESTED</div><div class="metric-value">🔋 {log_metrics.get("harvested_kwh", 0):.1f} <span style="font-size:12px;">kWh</span></div></div>', unsafe_allow_html=True)
+        with m4:
+            st.markdown(f'<div class="metric-container" style="border-top-color: #9c27b0;"><div class="metric-title">PEAK LOOP THERMAL POWER</div><div class="metric-value">⚡ {log_metrics.get("peak_w", 0):.1f} <span style="font-size:12px;">kW</span></div></div>', unsafe_allow_html=True)
+            
+        ts1, ts2 = st.columns(2)
+        with ts1:
+            if time_target and irr_target:
+                fig_ts_irr = go.Figure()
+                fig_ts_irr.add_trace(go.Scatter(x=df_log[mapping_dict[time_target]], y=df_log[mapping_dict[irr_target]], mode='lines', name='Solar GHI', line=dict(color='#ff9800', width=2)))
+                fig_ts_irr.update_layout(title="☀️ Diurnal Solar Radiation Capture Timeline", xaxis_title="Time of Day", yaxis_title="Irradiance (W/m²)", plot_bgcolor='white', height=260, margin=dict(l=30, r=30, t=40, b=30))
+                st.plotly_chart(fig_ts_irr, use_container_width=True)
+        with ts2:
+            if time_target and tout_target and tin_target:
+                fig_ts_temp = go.Figure()
+                fig_ts_temp.add_trace(go.Scatter(x=df_log[mapping_dict[time_target]], y=df_log[mapping_dict[tin_target]], mode='lines', name='Field Feed Tin', line=dict(color='#2196f3', width=1.5)))
+                fig_ts_temp.add_trace(go.Scatter(x=df_log[mapping_dict[time_target]], y=df_log[mapping_dict[tout_target]], mode='lines', name='Field Delivery Tout', line=dict(color='#e53935', width=2)))
+                fig_ts_temp.update_layout(title="🌡️ Dynamic Loop Heat Gradient (Tin vs Tout)", xaxis_title="Time of Day", yaxis_title="Temperature (°C)", plot_bgcolor='white', height=260, margin=dict(l=30, r=30, t=40, b=30))
+                st.plotly_chart(fig_ts_temp, use_container_width=True)
+    else:
+        st.info("💡 Field operational metrics are idle. Select a pre-loaded field log dataset or drop a custom CSV into the side panel to dynamically parse operational telemetry.")
+
+# SECTION 5: P&ID BLUEPRINT LAYOUT (Adaptive Array Config Engine)
 st.markdown('<h3 class="section-header">📐 V. Schematic P&ID Process Flow Diagram</h3>', unsafe_allow_html=True)
 
-remaining_modules = max(1, modules - modules_per_bank)
 label_text = current_ind['label']
 color_hex = current_ind['color']
+
+# Dynamic Graph Builder based on layout size metrics
+if modules > modules_per_bank:
+    array_nodes = f"""
+        Array_A [label="COLLECTOR BANK A\\n({modules_per_bank} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
+        Array_B [label="COLLECTOR BANK B\\n({modules - modules_per_bank} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
+    """
+    array_edges = f"""
+        Pump_P1 -> Array_A [color="#0f52ba", label=" {flow_kghr/2:.0f} kg/h"];
+        Pump_P1 -> Array_B [color="#0f52ba", label=" {flow_kghr/2:.0f} kg/h"];
+        Array_A -> TT_101 [color="#c62828"];
+        Array_B -> TT_101 [color="#c62828"];
+    """
+else:
+    array_nodes = f"""
+        Array_A [label="COLLECTOR FIELD LOOP\\n({modules} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
+    """
+    array_edges = f"""
+        Pump_P1 -> Array_A [color="#0f52ba", label=" {flow_kghr:.0f} kg/h"];
+        Array_A -> TT_101 [color="#c62828"];
+    """
 
 st.graphviz_chart(f"""
 digraph G {{
@@ -311,8 +482,7 @@ digraph G {{
     subgraph cluster_solar {{
         label="☀️ SOLAR COLLECTOR ROW FIELDS";
         color="#c62828"; style="dashed,rounded"; bgcolor="#fffde7"; fontsize=8;
-        Array_A [label="COLLECTOR BANK A\\n({modules_per_bank} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
-        Array_B [label="COLLECTOR BANK B\\n({remaining_modules} Modules)", fillcolor="#ffebee", color="#e53935", width=1.3, height=0.5];
+        {array_nodes}
     }}
 
     Tank [label="🛢 STORAGE TANK\\nTK-101 Buffer\\n({storage_tank_capacity:,.0f} Liters)", shape=cylinder, fillcolor="#fff3cd", color="#f9a825", width=1.3, height=1.4];
@@ -342,11 +512,8 @@ digraph G {{
     Tank -> LT_101 [style=dotted, color="#546e7a", arrowhead=none];
 
     Tank -> Pump_P1 [color="#0f52ba"];
-    Pump_P1 -> Array_A [color="#0f52ba", label=" {flow_kghr:.0f} kg/h"];
-    Pump_P1 -> Array_B [color="#0f52ba"];
+    {array_edges}
     
-    Array_A -> TT_101 [color="#c62828"];
-    Array_B -> TT_101 [color="#c62828"];
     TT_101 -> PT_101 [color="#c62828"];
     PT_101 -> valv_out [color="#c62828"];
     valv_out -> Tank [color="#c62828"];
@@ -378,7 +545,7 @@ st.markdown(f"""
 | System Parameter | Design Values & Target Bounds |
 | :--- | :--- |
 | **Selected Target Industry** | 🏢 **{industry_type.upper()}** |
-| **Solar Field Field Architecture** | 🔀 `{total_banks} Parallel Rows` with `{modules_per_bank} Modules` connected in series |
+| **Solar Field Architecture** | 🔀 `{total_banks} Parallel Rows` with `{modules_per_bank} Modules` connected in series |
 | **Primary Optimal Circuit Flow Rate** | 🌊 **{flow_lpm:.1f} LPM** ({flow_kghr:.1f} kg/hour mass circulation) |
 | **Turnkey Project Investment (CAPEX)** | 💳 **{f"₹ {turnkey_capex:,.2f}"}** (Complete engineering, procurement, and setup) |
 | **Estimated Fuel Savings per Year** | 🚰 **{fuel_saved_annual:,.1f} {selected_fuel['unit']}/year** reduced from utility boiler usage |
