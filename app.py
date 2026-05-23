@@ -34,6 +34,23 @@ st.markdown("""
     h1, h2, h3 {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
+    .pid-block {
+        background-color: #111827 !important;
+        color: #10B981 !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        padding: 20px !important;
+        border-radius: 8px !important;
+        white-space: pre-wrap;
+        border: 1px solid #374151;
+        line-height: 1.4;
+    }
+    .proposal-section {
+        background-color: #FFFDF5 !important;
+        border: 1px solid #F5E6D3 !important;
+        padding: 25px !important;
+        border-radius: 8px !important;
+        margin-top: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -97,6 +114,90 @@ EXPERIMENTAL_REGISTRY = {
         "typical_delta_t": "1.9°C to 5.7°C",
         "description": "Maximum tested pump velocity configuration. High turbulent heat exchange yields optimal instantaneous efficiency, reducing fluid Delta-T.",
         "associated_files": ["24-01-2026_SQS_80.csv", "27-01-2026_SQS_70.csv", "28-01-2026_SQS_Jan28_60.csv", "29-01-2026_SQS_100.csv"]
+    }
+}
+
+# ==============================================================================
+# NEW APPLICATION LAYER SPECIFICATION REGISTRY
+# ==============================================================================
+APPLICATION_REGISTRY = {
+    "Pharmaceuticals": {
+        "default_t_in": 45.0,
+        "default_t_out": 85.0,
+        "default_daily_volume": 15000,
+        "p_and_id": """
+       [SQS SOLAR THERMAL FIELD ARRAY]
+                     │
+       (TT-01) Temp Out Transmitter
+                     │
+       [Diverter Valve LCV-101] ──(Low Temp Recirculation)──┐
+                     │                                      │
+                     ▼                                      ▼
+       [WFI Pure Steam Heat Exchanger HX-1]        [Rig Buffer Tank Tank-01]
+                     ▲                                      │
+                     │                                      │
+       [Feed Loop Water In] ──(FIT-01 Flow Meter)─── [Main Feed Pump P-01]
+        """,
+        "notes": "Requires strict temperature tracking via TT-01 to ensure fluid does not drop below passivation setpoints."
+    },
+    "Dairy Industry": {
+        "default_t_in": 50.0,
+        "default_t_out": 75.0,
+        "default_daily_volume": 35000,
+        "p_and_id": """
+       [SQS SOLAR THERMAL FIELD ARRAY]
+                     │
+       (TT-02) Milk Pasteurizer Control Feed
+                     │
+       [Proportional Mix Valve V-202] ◄─── [Raw Milk Storage Vats]
+                     │
+                     ▼
+       [Pasteurization Plate Exchanger HX-2]
+                     │
+                     ▼
+       [Regenerator Skid Unit] ───► [To Bottling Line]
+                     │
+       [Circulation Pump P-02] ◄─── [Pre-Heated Wash Feed]
+        """,
+        "notes": "Maintains tight tolerances to protect biological profiles during continuous pasteurization flows."
+    },
+    "Textiles": {
+        "default_t_in": 30.0,
+        "default_t_out": 90.0,
+        "default_daily_volume": 60000,
+        "p_and_id": """
+       [SQS SOLAR THERMAL FIELD ARRAY]
+                     │
+       (TT-03) Dye Vat High Thermal Line
+                     │
+                     ▼
+       [Direct Bulk Storage Tank Tank-30]
+                     │
+       [Isolation Valve V-305] ───► [Fabric Dyeing Process Skids]
+                     ▲
+                     │
+       [Primary Fresh Feed Tank] ──► [High Volume Utility Pump P-03]
+        """,
+        "notes": "Optimized for high mass volumes where broad temperature gaps match multi-stage dyeing bath protocols."
+    },
+    "Thermal Power Utilities": {
+        "default_t_in": 60.0,
+        "default_t_out": 115.0,
+        "default_daily_volume": 20000,
+        "p_and_id": """
+       [SQS SOLAR THERMAL FIELD ARRAY]
+                     │
+       (TT-04) Boiler Economizer Intake
+                     │
+                     ▼
+       [High Pressure Shell-and-Tube HX-4] ◄── [Deaerator Water Feed]
+                     │
+                     ▼
+       [Main Utility Steam Boiler Intake]
+                     │
+       [Condensate Returns Loop] ───► [Feed Boiler Pump P-04]
+        """,
+        "notes": "Operates under enhanced baseline pressure profiles to safely transfer high enthalpy inputs directly into power utility infrastructure."
     }
 }
 
@@ -170,7 +271,10 @@ def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area=7.2, 
         energy_output_exec = energy_input_w * efficiency_exec
         
         # Recalculate Delta-T gain based on current iteration values
-        delta_t_exec = energy_output_exec / (m_dot_exec * cp_exec)
+        if (m_dot_exec * cp_exec) > 0:
+            delta_t_exec = energy_output_exec / (m_dot_exec * cp_exec)
+        else:
+            delta_t_exec = 0
         t_out_new = t_in + delta_t_exec
         
         # Check condition convergence
@@ -227,6 +331,53 @@ selected_group = st.sidebar.selectbox(
 
 active_config = EXPERIMENTAL_REGISTRY[selected_group]
 
+# ------------------------------------------------------------------------------
+# EXTRA NEW FEATURE INTEGRATION: INDUSTRIAL APPLICATION DESIGN MATRIX
+# ------------------------------------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.header("🏢 Industrial Plant Up-Scaling Parameters")
+selected_app = st.sidebar.selectbox(
+    "Target Commercial Sector Application",
+    options=list(APPLICATION_REGISTRY.keys())
+)
+app_meta = APPLICATION_REGISTRY[selected_app]
+
+# Multi-variable targeting inputs requested by user
+st.sidebar.markdown("#### Plan Targeted Thermal Shifts")
+user_target_t_in = st.sidebar.slider(
+    "Desired Plant Inlet Temp (°C)",
+    min_value=15.0,
+    max_value=110.0,
+    value=app_meta["default_t_in"],
+    step=1.0
+)
+
+user_target_t_out = st.sidebar.slider(
+    "Desired Plant Outlet Temp (°C)",
+    min_value=user_target_t_in + 2.0,
+    max_value=140.0,
+    value=app_meta["default_t_out"],
+    step=1.0
+)
+
+user_daily_volume = st.sidebar.number_input(
+    "Daily Process Volume Demand (Liters)",
+    min_value=100,
+    max_value=500000,
+    value=app_meta["default_daily_volume"],
+    step=500
+)
+
+user_latitude = st.sidebar.slider(
+    "Deploy Geographical Latitude Coordinates (°)",
+    min_value=-60.0,
+    max_value=60.0,
+    value=28.61,
+    step=0.1,
+    help="Determines regional sun elevation distributions, atmospheric attenuation factors, and average insulation fields."
+)
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("### 🎛️ Primary Input Controls")
 
 # Flow Rate Fine-Tuning bounded within verified limits
@@ -347,10 +498,11 @@ st.write("")
 # ==============================================================================
 # DATA EXPANSION TABS: ADVANCED CHARTS AND INTERPRETATIONS
 # ==============================================================================
-tab_plots, tab_cross_flow, tab_meta = st.tabs([
+tab_plots, tab_cross_flow, tab_meta, tab_industrial_scaling = st.tabs([
     "📈 Performance Curves & Visualizations", 
     "🔀 Multi-Flow Comparative Analysis", 
-    "🗃️ Experimental Metadata Matrix"
+    "🗃️ Experimental Metadata Matrix",
+    "🏭 Industrial P&ID & Deployment Scoping Proposal" # New requested workspace tab
 ])
 
 # ------------------------------------------------------------------------------
@@ -486,3 +638,138 @@ with tab_meta:
             f"solar heat for longer periods within the header tubes. This drives large absolute temperature rises ($\Delta T$), but increases convective "
             f"and radiative heat loss from the collector surface back to the surrounding atmosphere."
         )
+
+# ------------------------------------------------------------------------------
+# EXTRA NEW FEATURE INTEGRATION: TAB 4: PLANT SCALING MODEL & SCHEMATICS
+# ------------------------------------------------------------------------------
+with tab_industrial_scaling:
+    st.header(f"⚙️ Plant Integration Blueprint & Infrastructure Sizing Matrix")
+    st.markdown(f"**Selected Sector Application Strategy:** {selected_app}")
+    
+    # --- SUBSYSTEM MATH 1: SOLAR HORIZON SIMULATION FROM LATITUDE ---
+    # Model a synthetic clear-sky insulation daylight sweep matching user's latitude footprint
+    solar_hours = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18])
+    lat_rad = math.radians(abs(user_latitude))
+    # Approximate midday peak based on latitude variance attenuation
+    peak_flux = max(350.0, 1020.0 * math.cos(lat_rad) - 50.0)
+    
+    hourly_irradiance = []
+    for hr in solar_hours:
+        # Sinusoidal baseline modeling standard sunshine path
+        ang = math.pi * (hr - 6) / 12
+        flux_step = peak_flux * math.sin(ang) if (hr >= 6 and hr <= 18) else 0.0
+        hourly_irradiance.append(max(0.0, flux_step))
+        
+    hourly_irradiance = np.array(hourly_irradiance)
+    
+    # --- SUBSYSTEM MATH 2: COMPUTE CRITICAL CONVERSION LIMITS ---
+    mean_target_t = (user_target_t_in + user_target_t_out) / 2.0
+    scaled_cp, scaled_rho = estimate_water_properties(mean_target_t)
+    
+    # Mass calculations for process fluid delivery demands
+    total_mass_kg = user_daily_volume * (scaled_rho / 1000.0)
+    energy_needed_joules = total_mass_kg * scaled_cp * (user_target_t_out - user_target_t_in)
+    energy_needed_kwh = energy_needed_joules / 3600000.0
+    
+    # Find integrated performance across midday operational curves to establish base area needs
+    midday_test = solve_collector_thermodynamics(
+        flow_rate_lph=active_config["mean_flow_rate"],
+        t_in=user_target_t_in,
+        it=peak_flux,
+        t_amb=t_amb_input,
+        ap_area=aperture_area,
+        config_dict=active_config
+    )
+    
+    integrated_efficiency = max(15.0, midday_test["efficiency_pct"]) / 100.0
+    total_solar_flux_kwh_m2 = np.sum(hourly_irradiance) / 1000.0
+    
+    # Total scaled engineering metrics
+    computed_ideal_area = energy_needed_kwh / (total_solar_flux_kwh_m2 * integrated_efficiency) if total_solar_flux_kwh_m2 > 0 else 100.0
+    # Distribute flow evenly assuming a standard 7-hour solid capture cycle window
+    computed_ideal_flow = user_daily_volume / 7.0 
+    
+    # --- DISPLAY METRIC SCOPING BLOCK ---
+    st.subheader("📋 Sized Engineering Allocation Targets")
+    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+    with col_p1:
+        st.metric("Required Plant Area Footprint", f"{computed_ideal_area:.2f} m²")
+    with col_p2:
+        st.metric("Ideal Flow Vector Rate", f"{computed_ideal_flow:.1f} Liters/hr")
+    with col_p3:
+        st.metric("Daily Thermal Plant Load", f"{energy_needed_kwh:.2f} kWh")
+    with col_p4:
+        st.metric("Regional Peak Solar Radiation", f"{peak_flux:.1f} W/m²")
+        
+    # --- RENDER DYNAMIC P&ID DRAWING DIAGRAMS ---
+    st.subheader("🔀 Dedicated Piping & Instrumentation Diagram Schematic Layout")
+    st.markdown("Below is the specific schematic routing strategy required to safely mesh the collector architecture with production plant loops:")
+    st.markdown(f'<div class="pid-block">{app_meta["p_and_id"]}</div>', unsafe_allow_html=True)
+    st.caption(f"**P&ID Control Directives:** {app_meta['notes']}")
+    
+    # --- PUMP RUN TIME AND ENERGY CUT-OUT CONTROLLER ---
+    st.subheader("⏱️ Rig Smart Pump Automation Schedule Controller")
+    st.markdown("Pumps activate explicitly when structural fluid solar yield outweighs cooling losses to prevent the solar system from running in reverse as an atmospheric radiator.")
+    
+    min_energy_threshold_w = st.slider(
+        "Set Minimum Operational Generation Trigger Cut-out (Watts Output)", 
+        min_value=50.0, 
+        max_value=600.0, 
+        value=180.0, 
+        step=10.0,
+        help="The pump cuts out if current collection drops below this net power generation floor."
+    )
+    
+    pump_timelines = []
+    pump_on_intervals = 0
+    total_harvested_w = 0.0
+    
+    for hr, step_it in zip(solar_hours, hourly_irradiance):
+        step_calc = solve_collector_thermodynamics(
+            flow_rate_lph=active_config["mean_flow_rate"],
+            t_in=user_target_t_in,
+            it=step_it,
+            t_amb=t_amb_input,
+            ap_area=aperture_area,
+            config_dict=active_config
+        )
+        
+        power_out = step_calc["energy_output_w"]
+        
+        if power_out >= min_energy_threshold_w:
+            pump_state = "🟢 RUNNING (ON)"
+            pump_on_intervals += 1
+            total_harvested_w += power_out
+        else:
+            pump_state = "🔴 STANDBY (OFF)"
+            
+        pump_timelines.append({
+            "Time Index": f"{hr:02d}:00 Hour Step",
+            "Model Sun Flux (W/m²)": f"{step_it:.1f}",
+            "Rig Power Output (W)": f"{power_out:.1f}",
+            "Estimated Temperature Out (°C)": f"{step_calc['temp_out']:.2f}",
+            "Pump System State": pump_state
+        })
+        
+    st.table(pd.DataFrame(pump_timelines))
+    
+    # --- FINAL FULL ENGINEERING PROPOSAL PACKAGE OUTPUT ---
+    st.markdown('<div class="proposal-section">', unsafe_allow_html=True)
+    st.subheader("📄 Commercial Plant Deployment Proposal & Feasibility Spec Sheet")
+    st.markdown(f"""
+    ### **Project Engineering Specification Document**
+    * **Target Framework Assignment Type:** Modular Process Heating Upgrade for **{selected_app}** Utilities.
+    * **Geographic Field Optimization Array Placement Location:** Sized for an operational baseline profile at **{user_latitude}° Latitude**.
+    
+    ### **1. Fluid Kinetic Properties & Design Scaling Constraints**
+    To satisfy your daily requirement of **{user_daily_volume} Liters** shifting precisely from **{user_target_t_in}°C** up to **{user_target_t_out}°C**, the system demands an array scaled using the kinetic parameters from the **{active_config['nominal_string']}** empirical database. 
+    * **Computed Working Fluid Density (ρ):** `{scaled_rho:.2f} kg/m³` | **Specific Heat Capacity (Cp):** `{scaled_cp:.1f} J/kg·K`.
+    * **Recommended Sized Continuous Flow Rate Field Setpoint:** **`{computed_ideal_flow:.2f} LPH`** (This value maintains fluid dynamics within the efficient operational limits derived from your source data files).
+    * **Total Calculated Aperture Surface Area Requirement:** **`{computed_ideal_area:.2f} m²`** of high-performance flat-plate or concentrated vacuum tubing elements.
+    
+    ### **2. Automated Pump Lifecycle & Energy Management Profile**
+    * **Total Effective Pump Running Lifetime:** **`{pump_on_intervals} Hours`** of active automation runtime over a standard diurnal daylight schedule.
+    * **Rig Performance Cut-out Safety Boundary:** System locks down flow loops automatically if local solar generation levels dip lower than **`{min_energy_threshold_w} W`**, isolating process manifolds from unwanted radiative heat back-siphoning.
+    * **Estimated Cumulative Module Delivery Yield:** **`{(total_harvested_w / 1000.0):.3f} kWh`** converted across full running loops per unit module baseline array layout.
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
