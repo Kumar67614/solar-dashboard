@@ -35,16 +35,16 @@ st.markdown("""
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
     .pid-block {
-        background-color: #0F172A !important;
+        background-color: #0B0F19 !important;
         color: #38BDF8 !important;
         font-family: 'Courier New', Courier, monospace !important;
         font-size: 11px !important;
-        padding: 25px !important;
-        border-radius: 6px !important;
+        padding: 20px !important;
+        border-radius: 4px !important;
         white-space: pre !important;
         overflow-x: auto !important;
-        border: 2px solid #1E293B;
-        line-height: 1.25 !important;
+        border: 2px solid #334155;
+        line-height: 1.22 !important;
     }
     .proposal-section {
         background-color: #FFFDF5 !important;
@@ -115,7 +115,7 @@ EXPERIMENTAL_REGISTRY = {
 }
 
 # ==============================================================================
-# APPLICATION LAYER SPECIFICATION REGISTRY WITH FORMAL A4 ISA-S5.1 P&ID DIAGRAMS
+# APPLICATION LAYER SPECIFICATION REGISTRY WITH A4 BLUEPRINT INDUSTRIAL P&IDs
 # ==============================================================================
 APPLICATION_REGISTRY = {
     "Pharmaceuticals": {
@@ -123,38 +123,54 @@ APPLICATION_REGISTRY = {
         "default_t_out": 85.0,
         "default_daily_volume": 15000,
         "p_and_id": """
-┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── PHARMACEUTICAL WFI WATER LOOP [A4 PRINT BOUNDS]     │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                   │
-│     FROM MANIFOLD SYSTEM          [TE-101]          [TT-101]                                      │
-│      ───────────────────────────────■─────────[───]────┬───────────────                           │
-│                                               │   │    │              │                           │
-│                                               └───┘    │ -e-e-e-       │                          │
-│                                                        ▼               ▼                          │
-│                                                    [TIC-101]       [LSH-102]                      │
-│                                                    (DCS Loop)      (Hi Alarm)                     │
-│                                                        │               │                          │
-│                                                        │ - - - - - - - ┘                          │
-│                                                        ▼ (Pneumatic Link)                         │
-│                                                   [ TCV-101 ] <─── 三 Way Modulating Diverter     │
-│                                                       ││                                          │
-│                         ┌─────────────────────────────┘└──────────────────────────┐               │
-│                         │ (Accept Flow: Temp >= 85°C)                             │ (Low Temp Recirc)
-│                         ▼                                                         ▼               │
-│               ┌───────────────────┐                                     ┌───────────────────┐     │
-│               │   SHELL & TUBE    │                                     │  RECIRCULATION    │     │
-│  WFI INLET ───┤► HEAT EXCHANGER   ├─► WFI TO STORAGE                    │    BUFFER TANK    │     │
-│               │     [ HX-101 ]    │                                     │     [ TK-102 ]    │     │
-│               └───────────────────┘                                     └─────────┬─────────┘     │
-│                                                                                   │               │
-│                                                                                   ▼               │
-│     UTILITY WATER MAKEUP ───[ FE-102 ]───────[V-101]───────────[ P-101A/B ]───────┘               │
-│                             Flow Element     Iso Valve         Centrifugal Pump                   │
-│                                                                                                   │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
-└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── PHARMACEUTICAL WFI WATER MANIFOLD LOOP  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                  │
+│                       SOLAR COLLECTOR ARRAY MANIFOLD FIELD [SC-101]                              │
+│                      ┌──────────────────────────────────────────────┐                            │
+│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
+│                      └──────────────────────┬───────────────────────┘                            │
+│                                             │                                                    │
+│                                             ▼                                                    │
+│                                      [TE] [TT-101]                                               │
+│                                      ──■───────┬─────────────────────────────────┐               │
+│                                                │                                 │               │
+│                                                │ -e-e-e- (4-20mA Signal)         │               │
+│                                                ▼                                 │               │
+│                                            [TIC-101] ─── (DCS CONTROLLER)        │               │
+│                                                │                                 │               │
+│                                                │ - - - - (Pneumatic Link)        │               │
+│                                                ▼                                 ▼               │
+│                                           [TV-101]                         [LSH-102]             │
+│                                      3-Way Modulating                      (High-Limit)          │
+│                                            X-Over                                │               │
+│                                            / | \                                 │               │
+│               ┌───────────────────────────┘  │  └──────────────────────┐         │               │
+│               │ (Temp >= 85°C)               │                         │         │               │
+│               ▼                              │                         ▼         ▼               │
+│       ┌───────────────┐                      │                 ┌───────────────────────┐         │
+│       │ | | | | | | | │                      │                 │  ___________________  │         │
+│ WFI───┤►| | | | | | | ├─► TO STORAGE         │                 │ ┌───────────────────┐ │         │
+│ IN    │ | | | | | | | │  [TK-103]            │                 │ │     RECIRCULATION │ │         │
+│       └───────┬───────┘                      │                 │ │       BUFFER TANK │ │         │
+│            HX-101                            │                 │ │        [TK-102]   │ │         │
+│       Shell & Tube Exch                      ▼                 │ └─────────┬─────────┘ │         │
+│                                    (Low-Temp Divert Loop)      │___________│___________│         │
+│                                              │                             │                     │
+│                                              └─────────────────────────────┤                     │
+│                                                                            ▼                     │
+│        UTILITY INTAKE ───[FE-102]─────[V-101]───────────( P-101A/B )───────┘                     │
+│                            [FT]       Gate Vlv        Centrifugal Pump                           │
+│                                                                                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
+├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
+│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
+│  -e-  Electrical Signal Cable    [TIC] Temp Controller   │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
+│  - -  Pneumatic Control Line     [TV] Control Valve      │ DRAWING NO: PID-WFI-101   REV: 2026.A1 │
+│  ──■── Inline Sensor Well         (P) Centrifugal Pump   │ SCALE: NTS                SIZE: A4     │
+└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
 """,
         "notes": "Requires strict temperature tracking via TT-101/TIC-101 logic gates to guarantee zero unpasteurized bypass fluid into secondary pure loops."
     },
@@ -163,33 +179,52 @@ APPLICATION_REGISTRY = {
         "default_t_out": 75.0,
         "default_daily_volume": 35000,
         "p_and_id": """
-┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── DAIRY PASTEURIZATION MANIFOLD [A4 PRINT BOUNDS]   │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── DAIRY COMMERCIAL PASTEURIZATION SKID    │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                  │
+│                       HIGH EFFICIENCY THERMAL SOLAR ARRAY FIELD [SC-201]                         │
+│                      ┌──────────────────────────────────────────────┐                            │
+│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
+│                      └──────────────────────┬───────────────────────┘                            │
+│                                             │                                                    │
+│                                             ▼                                                    │
+│                                      [TE] [FIT-201]                                              │
+│                                      ──■───────■─────────────────────────┐                        │
+│                                                │                         │                        │
+│                                                │ -e-e-e- (Modbus)        │                        │
+│                                                ▼                         ▼                        │
+│                                            [PLC-200]                 [FCV-201]                    │
+│                                         Central Command           Proportional Vlv                │
+│                                                │                         │                        │
+│                                                │ - - - - (Pneumatic)     │                        │
+│                                                ▼                         │                        │
+│                                            [FCV-202]                     │                        │
+│                                         Pneumatic Feed                   │                        │
+│                                                │                         │                        │
+│               ┌────────────────────────────────┘                         │                        │
+│               │                                                          │                        │
+│               ▼                                                          ▼                        │
+│       ┌───────────────┐                                        ┌───────────────────┐              │
+│  RAW  │   =========   │                                        │  _______________  │              │
+│ MILK──┤►  =========   ├───────────────────────────────────────►│ ┌───────────────┐ │              │
+│ IN    │   =========   │                                        │ │  PASTEURIZED  │ │              │
+│       └───────┬───────┘                                        │ │ STORAGE RECPT │ │              │
+│            HX-201                                              │ │   [TK-202]    │ │              │
+│       Plate Pasteurizer                                        │ └───────────────┘ │              │
+│                                                                │___________________│              │
 │                                                                                                   │
-│   SOLAR ARRAY OUTPUT FIELD        [TE-201]          [FIT-201]                                     │
-│      ───────────────────────────────■─────────────────■────────────────┐                          │
-│                                     │                 │                │                          │
-│                                     ▼                 ▼                │                          │
-│                                 [TT-201]          [FT-201]             │                          │
-│                                     │ -e-e-e-         │ -e-e-e-        │                          │
-│                                     ▼                 ▼                ▼                          │
-│                                 ┌─────────────────────────┐       [ FCV-201 ]                     │
-│                                 │ SYSTEM CENTRAL CONTROL  ├───────► (Proportional Flow Valve)     │
-│                                 │    PLC STATION PANEL    │        └───┬──────────────────────┘   │
-│                                 └────────────┬────────────┘            │                          │
-│                                              │ - - - (Pneumatic)       ▼                          │
-│                                              ▼               ┌───────────────────┐                │
-│   RAW MILK UTILITY SUPPLY ───────────────[ V-201 ]───────────┤► PLATE PASTEURIZER├─► BOTTLING     │
-│                                          Feed Valve          │     [ HX-201 ]    │   MANIFOLD     │
-│                                                              └─────────┬─────────┘                │
-│                                                                        │                          │
-│   CLEANING FLUID INLET (CIP) ───[V-202]──────[ P-201 ]─────────────────┘                          │
-│                                 Sanitary Vlv Feed Pump                                            │
+│  CLEAN-IN-PLACE (CIP) WATER SUPPLY ───[V-202]─────────( P-201 )──────────┘                        │
+│                                      Sanitary Vlv   Sanitary Pump                                 │
 │                                                                                                   │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
-└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
+├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
+│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
+│  -e-  Electrical Signal Cable    [FIT] Flow Indicator TR │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
+│  - -  Pneumatic Control Line     [FCV] Flow Control Vlv  │ DRAWING NO: PID-DRY-201   REV: 2026.A2 │
+│  ──■── Inline Sensor Well         (P) Pump Assembly      │ SCALE: NTS                SIZE: A4     │
+└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
 """,
         "notes": "Maintains precise micro-gap feedback adjustments via PLC automation loops to manage tight bio-layer structural tolerances."
     },
@@ -198,32 +233,52 @@ APPLICATION_REGISTRY = {
         "default_t_out": 90.0,
         "default_daily_volume": 60000,
         "p_and_id": """
-┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── HIGH VOLUME TEXTILE DYE SKID   [A4 PRINT BOUNDS]  │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── HIGH VOLUME TEXTILE DYE SKID EXPANSION   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                  │
+│                       BULK SOLAR RADIATION HEAT TRANSFER COLLECTORS [SC-301]                     │
+│                      ┌──────────────────────────────────────────────┐                            │
+│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
+│                      └──────────────────────┬───────────────────────┘                            │
+│                                             │                                                    │
+│                                             ▼                                                    │
+│                                      [TE] [PT-301]                                               │
+│                                      ──■───────■─────────────────────────┐                        │
+│                                                │                         │                        │
+│                                                ▼                         ▼                        │
+│                                            [TIC-301]                 [PIC-301]                    │
+│                                         Temp Controller           Press Controller                │
+│                                                │                         │                        │
+│                                                └────────────┬────────────┘                        │
+│                                                             │ -e-e-e- (Interlock Link)            │
+│                                                             ▼                                     │
+│                                                          [Y-301] 安全继电器                        │
+│                                                             │                                     │
+│                                                             ▼                                     │
+│                                                         [HCV-301] ─── High Volume Valve           │
+│                                                             │                                     │
+│                                                             ▼                                     │
+│                                                 ┌───────────────────────┐                         │
+│                                                 │  ___________________  │                         │
+│                                                 │ ┌───────────────────┐ │                         │
+│       ┌───────────────────┐                     │ │    THERMAL BULK   │ │                         │
+│ RECIRC│   =============   │                     │ │   STORAGE BUFFER  │ │                         │
+│ LINE ─┼──►=============   ├────────────────────►│ │      [TK-301]     │ │                         │
+│       │   =============   │                     │ └─────────┬─────────┘ │                         │
+│       └─────────┬─────────┘                     │___________│___________│                         │
+│              ( P-301 )                                      │                                     │
+│          High Mass Duty Pump                                ▼                                     │
+│                                                    DYEING VAT PROCESS MIXER                       │
 │                                                                                                   │
-│   HIGH TEMPERATURE LINE           [TE-301]          [PT-301]                                      │
-│      ───────────────────────────────■─────────────────■────────────────┐                          │
-│                                     │                 │                │                          │
-│                                     ▼                 ▼                │                          │
-│                                 [TIC-301]         [PIC-301]            │                          │
-│                                     │                 │                ▼                          │
-│                                     └─────────┬───────┘          ┌───────────┐                    │
-│                                               │                  │ [Y-301]   │ Interlock Relay    │
-│                                               ▼                  └─────┬─────┘                    │
-│                                     ┌───────────────────┐              │                          │
-│                                     │ BULK RETENTION   │              ▼                          │
-│                                     │ THERMAL STORAGE   │         [ HCV-301 ]                     │
-│                                     │     [ TK-301 ]    ├─────────► High Volume Gate Driver      │
-│                                     └─────────┬─────────┘          └───┬──────────────────────┘   │
-│                                               │                        │                          │
-│                                               ▼                        ▼                          │
-│   PROCESS RETURN RECIRC LOOP ─────────────[ P-301 ]────────────────────┴─► DYEING VAT MIXER       │
-│                                           High Mass Duty Pump                                     │
-│                                                                                                   │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
-└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
+├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
+│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
+│  -e-  Electrical Signal Cable    [PT] Pressure Transmit  │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
+│  - -  Pneumatic Control Line     [Y] Interlock Relay     │ DRAWING NO: PID-TEX-301   REV: 2026.A1 │
+│  ──■── Inline Sensor Well         (P) Heavy Pump Mech    │ SCALE: NTS                SIZE: A4     │
+└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
 """,
         "notes": "Optimized for raw plant sizing margins handling high volume throughput with rapid cycle dump valves."
     },
@@ -232,31 +287,50 @@ APPLICATION_REGISTRY = {
         "default_t_out": 115.0,
         "default_daily_volume": 20000,
         "p_and_id": """
-┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── POWER UTILITY BOILER FEED REG [A4 PRINT BOUNDS]   │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── POWER UTILITY BOILER FEED REGULATOR      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                  │
+│                       HIGH ENTHALPY PARABOLIC DISH Array [SC-401]                                │
+│                      ┌──────────────────────────────────────────────┐                            │
+│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
+│                      └──────────────────────┬───────────────────────┘                            │
+│                                             │                                                    │
+│                                             ▼                                                    │
+│                                      [TE] [PT-401]                                               │
+│                                      ──■───────■─────────────────────────┐                        │
+│                                                │                         │                        │
+│                                                ▼                         ▼                        │
+│                                            [TT-401]                  [PIT-401]                    │
+│                                         Temp Transmitter          Press Indicator                 │
+│                                                │                         │                        │
+│                                                └────────────┬────────────┘                        │
+│                                                             │ -e-e-e-                             │
+│                                                             ▼                                     │
+│                                                         [PCV-401] ─── Pilot Balanced Reg          │
+│                                                             │                                     │
+│                                                             ▼                                     │
+│                                                 ┌───────────────────────┐                         │
+│                                                 │     (DRUM BOILER)     │                         │
+│       ┌───────────────┐                         │  ___________________  │                         │
+│       │ XXXXXXXXXXXXX │                         │ ┌───────────────────┐ │                         │
+│ FEED ─┤►XXXXXXXXXXXXX ├────────────────────────►│ │ HIGH PRESS ACCUM  │ ├─► TURBINE STEAM OVERFLOW│
+│ LOOP  │ XXXXXXXXXXXXX │                         │ │      [TK-402]     │ │                         │
+│       └───────┬───────┘                         │ └───────────────────┘ │                         │
+│            HX-401                               │_______________________│                         │
+│       High-Press Exch                                                                             │
 │                                                                                                   │
-│   HIGH ENTHALPY INLET             [TE-401]          [PT-401]                                      │
-│      ───────────────────────────────■─────────────────■────────────────┐                          │
-│                                     │ (High Temp)     │ (High Pressure)│                          │
-│                                     ▼                 ▼                │                          │
-│                                 [TT-401]          [PT-401]             ▼                          │
-│                                     │                 │          ┌───────────┐                    │
-│                                     └─────────┬───────┘          │ [PCV-401] │ Pressure Regulator │
-│                                               │                  └─────┬─────┘                    │
-│                                               ▼                        │                          │
-│                                    ┌─────────────────────┐             ▼                          │
-│                                    │ HIGH PRESS SHELL    │       [ DRUM BOILER ]                  │
-│   DEAERATED INTAKE LOOP ───────────┤►   EXCHANGER        ├──────►─[ TK-402 ]───► TURBINE OVERFLOW │
-│                                    │     [ HX-401 ]      │                                        │
-│                                    └──────────┬──────────┘                                        │
-│                                               ▲                                                   │
-│                                               │                                                   │
-│   CONDENSATE HIGH-PRESSURE VECTOR ────────[ P-401 ] Multi-Stage Feed Injection Pump               │
+│   CONDENSATE FLUID FEEDBACK VECTOR ────────( P-401 )──────────────────┘                           │
+│                                         Multi-Stage Injection                                     │
 │                                                                                                   │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
-└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
+├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
+│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
+│  -e-  Electrical Signal Cable    [PT] Pressure Transmit  │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
+│  - -  Pneumatic Control Line     [PCV] Press Ctrl Valve  │ DRAWING NO: PID-POW-401   REV: 2026.A3 │
+│  ──■── Inline Sensor Well         (P) Multi-Stage Pump   │ SCALE: NTS                SIZE: A4     │
+└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
 """,
         "notes": "Operates under enhanced high-pressure threshold limits. High safety factor pressure relief valve monitoring is compulsory."
     }
@@ -671,7 +745,7 @@ with tab_meta:
         )
 
 # ------------------------------------------------------------------------------
-# TAB 4: PLANT SCALING MODEL & SCHEMATICS WITH COMPREHENSIVE INDUSTRIAL DATA
+# TAB 4: PLANT SCALING MODEL & SCHEMATICS WITH INDUSTRIAL COMPLIANT A4 SPEC
 # ------------------------------------------------------------------------------
 with tab_industrial_scaling:
     st.header(f"⚙️ Plant Integration Blueprint & Infrastructure Sizing Matrix")
@@ -722,8 +796,8 @@ with tab_industrial_scaling:
     with col_p4:
         st.metric("Regional Peak Solar Radiation", f"{peak_flux:.1f} W/m²")
         
-    st.subheader("🔀 Dedicated Piping & Instrumentation Diagram Schematic Layout")
-    st.markdown("Below is the specific schematic routing strategy required to safely mesh the collector architecture with production plant loops:")
+    st.subheader("🔀 Dedicated Piping & Instrumentation Diagram Blueprint Layout")
+    st.markdown("Below is the specific industrial schematic routing strategy matching professional instrumentation layouts:")
     st.markdown(f'<pre class="pid-block">{app_meta["p_and_id"]}</pre>', unsafe_allow_html=True)
     st.caption(f"**P&ID Control Directives:** {app_meta['notes']}")
     
