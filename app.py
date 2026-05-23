@@ -35,14 +35,16 @@ st.markdown("""
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
     .pid-block {
-        background-color: #111827 !important;
-        color: #10B981 !important;
+        background-color: #0F172A !important;
+        color: #38BDF8 !important;
         font-family: 'Courier New', Courier, monospace !important;
-        padding: 20px !important;
-        border-radius: 8px !important;
-        white-space: pre-wrap;
-        border: 1px solid #374151;
-        line-height: 1.4;
+        font-size: 11px !important;
+        padding: 25px !important;
+        border-radius: 6px !important;
+        white-space: pre !important;
+        overflow-x: auto !important;
+        border: 2px solid #1E293B;
+        line-height: 1.25 !important;
     }
     .proposal-section {
         background-color: #FFFDF5 !important;
@@ -57,11 +59,6 @@ st.markdown("""
 # ==============================================================================
 # EMBEDDED KNOWLEDGE BASE: EXPERIMENTAL RIG SUMMARY METRICS & ATTRIBUTES
 # ==============================================================================
-# This dictionary maps data ranges and statistics extracted from your uploaded CSVs:
-# 100 LPH: 60_06-02, 80_18-02, 90_09-02, 100_21-11
-# 200 LPH: 60_02-02, 70_17-02, 80_24-11, 80_30-01, 90_06-12
-# 300 LPH: 60_11-02, 70_10-02, 80__12-02, 90_13-02, 100_18.11.25
-# 400 LPH: 24-01-2026_80, 27-01-2026_70, 28-01-2026_60, 29-01-2026_100
 EXPERIMENTAL_REGISTRY = {
     100: {
         "nominal_string": "100 LPH",
@@ -118,7 +115,7 @@ EXPERIMENTAL_REGISTRY = {
 }
 
 # ==============================================================================
-# NEW APPLICATION LAYER SPECIFICATION REGISTRY
+# APPLICATION LAYER SPECIFICATION REGISTRY WITH FORMAL A4 ISA-S5.1 P&ID DIAGRAMS
 # ==============================================================================
 APPLICATION_REGISTRY = {
     "Pharmaceuticals": {
@@ -126,78 +123,142 @@ APPLICATION_REGISTRY = {
         "default_t_out": 85.0,
         "default_daily_volume": 15000,
         "p_and_id": """
-       [SQS SOLAR THERMAL FIELD ARRAY]
-                     │
-       (TT-01) Temp Out Transmitter
-                     │
-       [Diverter Valve LCV-101] ──(Low Temp Recirculation)──┐
-                     │                                      │
-                     ▼                                      ▼
-       [WFI Pure Steam Heat Exchanger HX-1]        [Rig Buffer Tank Tank-01]
-                     ▲                                      │
-                     │                                      │
-       [Feed Loop Water In] ──(FIT-01 Flow Meter)─── [Main Feed Pump P-01]
-        """,
-        "notes": "Requires strict temperature tracking via TT-01 to ensure fluid does not drop below passivation setpoints."
+┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── PHARMACEUTICAL WFI WATER LOOP [A4 PRINT BOUNDS]     │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                   │
+│     FROM MANIFOLD SYSTEM          [TE-101]          [TT-101]                                      │
+│      ───────────────────────────────■─────────[───]────┬───────────────                           │
+│                                               │   │    │              │                           │
+│                                               └───┘    │ -e-e-e-       │                          │
+│                                                        ▼               ▼                          │
+│                                                    [TIC-101]       [LSH-102]                      │
+│                                                    (DCS Loop)      (Hi Alarm)                     │
+│                                                        │               │                          │
+│                                                        │ - - - - - - - ┘                          │
+│                                                        ▼ (Pneumatic Link)                         │
+│                                                   [ TCV-101 ] <─── 三 Way Modulating Diverter     │
+│                                                       ││                                          │
+│                         ┌─────────────────────────────┘└──────────────────────────┐               │
+│                         │ (Accept Flow: Temp >= 85°C)                             │ (Low Temp Recirc)
+│                         ▼                                                         ▼               │
+│               ┌───────────────────┐                                     ┌───────────────────┐     │
+│               │   SHELL & TUBE    │                                     │  RECIRCULATION    │     │
+│  WFI INLET ───┤► HEAT EXCHANGER   ├─► WFI TO STORAGE                    │    BUFFER TANK    │     │
+│               │     [ HX-101 ]    │                                     │     [ TK-102 ]    │     │
+│               └───────────────────┘                                     └─────────┬─────────┘     │
+│                                                                                   │               │
+│                                                                                   ▼               │
+│     UTILITY WATER MAKEUP ───[ FE-102 ]───────[V-101]───────────[ P-101A/B ]───────┘               │
+│                             Flow Element     Iso Valve         Centrifugal Pump                   │
+│                                                                                                   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
+└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+""",
+        "notes": "Requires strict temperature tracking via TT-101/TIC-101 logic gates to guarantee zero unpasteurized bypass fluid into secondary pure loops."
     },
     "Dairy Industry": {
         "default_t_in": 50.0,
         "default_t_out": 75.0,
         "default_daily_volume": 35000,
         "p_and_id": """
-       [SQS SOLAR THERMAL FIELD ARRAY]
-                     │
-       (TT-02) Milk Pasteurizer Control Feed
-                     │
-       [Proportional Mix Valve V-202] ◄─── [Raw Milk Storage Vats]
-                     │
-                     ▼
-       [Pasteurization Plate Exchanger HX-2]
-                     │
-                     ▼
-       [Regenerator Skid Unit] ───► [To Bottling Line]
-                     │
-       [Circulation Pump P-02] ◄─── [Pre-Heated Wash Feed]
-        """,
-        "notes": "Maintains tight tolerances to protect biological profiles during continuous pasteurization flows."
+┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── DAIRY PASTEURIZATION MANIFOLD [A4 PRINT BOUNDS]   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                   │
+│   SOLAR ARRAY OUTPUT FIELD        [TE-201]          [FIT-201]                                     │
+│      ───────────────────────────────■─────────────────■────────────────┐                          │
+│                                     │                 │                │                          │
+│                                     ▼                 ▼                │                          │
+│                                 [TT-201]          [FT-201]             │                          │
+│                                     │ -e-e-e-         │ -e-e-e-        │                          │
+│                                     ▼                 ▼                ▼                          │
+│                                 ┌─────────────────────────┐       [ FCV-201 ]                     │
+│                                 │ SYSTEM CENTRAL CONTROL  ├───────► (Proportional Flow Valve)     │
+│                                 │    PLC STATION PANEL    │        └───┬──────────────────────┘   │
+│                                 └────────────┬────────────┘            │                          │
+│                                              │ - - - (Pneumatic)       ▼                          │
+│                                              ▼               ┌───────────────────┐                │
+│   RAW MILK UTILITY SUPPLY ───────────────[ V-201 ]───────────┤► PLATE PASTEURIZER├─► BOTTLING     │
+│                                          Feed Valve          │     [ HX-201 ]    │   MANIFOLD     │
+│                                                              └─────────┬─────────┘                │
+│                                                                        │                          │
+│   CLEANING FLUID INLET (CIP) ───[V-202]──────[ P-201 ]─────────────────┘                          │
+│                                 Sanitary Vlv Feed Pump                                            │
+│                                                                                                   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
+└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+""",
+        "notes": "Maintains precise micro-gap feedback adjustments via PLC automation loops to manage tight bio-layer structural tolerances."
     },
     "Textiles": {
         "default_t_in": 30.0,
         "default_t_out": 90.0,
         "default_daily_volume": 60000,
         "p_and_id": """
-       [SQS SOLAR THERMAL FIELD ARRAY]
-                     │
-       (TT-03) Dye Vat High Thermal Line
-                     │
-                     ▼
-       [Direct Bulk Storage Tank Tank-30]
-                     │
-       [Isolation Valve V-305] ───► [Fabric Dyeing Process Skids]
-                     ▲
-                     │
-       [Primary Fresh Feed Tank] ──► [High Volume Utility Pump P-03]
-        """,
-        "notes": "Optimized for high mass volumes where broad temperature gaps match multi-stage dyeing bath protocols."
+┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── HIGH VOLUME TEXTILE DYE SKID   [A4 PRINT BOUNDS]  │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                   │
+│   HIGH TEMPERATURE LINE           [TE-301]          [PT-301]                                      │
+│      ───────────────────────────────■─────────────────■────────────────┐                          │
+│                                     │                 │                │                          │
+│                                     ▼                 ▼                │                          │
+│                                 [TIC-301]         [PIC-301]            │                          │
+│                                     │                 │                ▼                          │
+│                                     └─────────┬───────┘          ┌───────────┐                    │
+│                                               │                  │ [Y-301]   │ Interlock Relay    │
+│                                               ▼                  └─────┬─────┘                    │
+│                                     ┌───────────────────┐              │                          │
+│                                     │ BULK RETENTION   │              ▼                          │
+│                                     │ THERMAL STORAGE   │         [ HCV-301 ]                     │
+│                                     │     [ TK-301 ]    ├─────────► High Volume Gate Driver      │
+│                                     └─────────┬─────────┘          └───┬──────────────────────┘   │
+│                                               │                        │                          │
+│                                               ▼                        ▼                          │
+│   PROCESS RETURN RECIRC LOOP ─────────────[ P-301 ]────────────────────┴─► DYEING VAT MIXER       │
+│                                           High Mass Duty Pump                                     │
+│                                                                                                   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
+└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+""",
+        "notes": "Optimized for raw plant sizing margins handling high volume throughput with rapid cycle dump valves."
     },
     "Thermal Power Utilities": {
         "default_t_in": 60.0,
         "default_t_out": 115.0,
         "default_daily_volume": 20000,
         "p_and_id": """
-       [SQS SOLAR THERMAL FIELD ARRAY]
-                     │
-       (TT-04) Boiler Economizer Intake
-                     │
-                     ▼
-       [High Pressure Shell-and-Tube HX-4] ◄── [Deaerator Water Feed]
-                     │
-                     ▼
-       [Main Utility Steam Boiler Intake]
-                     │
-       [Condensate Returns Loop] ───► [Feed Boiler Pump P-04]
-        """,
-        "notes": "Operates under enhanced baseline pressure profiles to safely transfer high enthalpy inputs directly into power utility infrastructure."
+┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SQS SOLAR THERMAL SYSTEM INTEGRATION DIAGRAM ── POWER UTILITY BOILER FEED REG [A4 PRINT BOUNDS]   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                   │
+│   HIGH ENTHALPY INLET             [TE-401]          [PT-401]                                      │
+│      ───────────────────────────────■─────────────────■────────────────┐                          │
+│                                     │ (High Temp)     │ (High Pressure)│                          │
+│                                     ▼                 ▼                │                          │
+│                                 [TT-401]          [PT-401]             ▼                          │
+│                                     │                 │          ┌───────────┐                    │
+│                                     └─────────┬───────┘          │ [PCV-401] │ Pressure Regulator │
+│                                               │                  └─────┬─────┘                    │
+│                                               ▼                        │                          │
+│                                    ┌─────────────────────┐             ▼                          │
+│                                    │ HIGH PRESS SHELL    │       [ DRUM BOILER ]                  │
+│   DEAERATED INTAKE LOOP ───────────┤►   EXCHANGER        ├──────►─[ TK-402 ]───► TURBINE OVERFLOW │
+│                                    │     [ HX-401 ]      │                                        │
+│                                    └──────────┬──────────┘                                        │
+│                                               ▲                                                   │
+│                                               │                                                   │
+│   CONDENSATE HIGH-PRESSURE VECTOR ────────[ P-401 ] Multi-Stage Feed Injection Pump               │
+│                                                                                                   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ LEGEND:  ─── Process Pipe  -e-e- Electrical  - - - Pneumatic Signal  ■ Inline sensor  [───] Trans   │
+└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+""",
+        "notes": "Operates under enhanced high-pressure threshold limits. High safety factor pressure relief valve monitoring is compulsory."
     }
 }
 
@@ -209,15 +270,9 @@ def estimate_water_properties(t_mean_c):
     Computes temperature-dependent specific heat capacity (Cp, J/kg*K) and density 
     (rho, kg/m3) of fluid utilizing polynomial formulations for solar applications.
     """
-    # Safeguard boundary constraints matching fluid operational limits
     t = max(5.0, min(140.0, t_mean_c))
-    
-    # 4th order polynomial fit for Specific Heat Capacity Cp (J/kg*K)
     cp = 4217.4 - 3.7202 * t + 0.14125 * (t**2) - 0.0020554 * (t**3) + 1.1275e-5 * (t**4)
-    
-    # 3rd order polynomial fit for Density rho (kg/m3)
     rho = 1000.34 - 0.05434 * t - 0.003632 * (t**2) + 1.107e-5 * (t**3)
-    
     return cp, rho
 
 def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area=7.2, config_dict=None):
@@ -232,16 +287,13 @@ def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area=7.2, 
             "cp_j_kgk": 4184.0, "mass_flow_kgs": (flow_rate_lph / 3600.0)
         }
 
-    # Extract target experimental coefficients
     eta0 = config_dict["intercept_eta0"]
     a1 = config_dict["loss_coeff_a1"]
     a2 = config_dict["loss_coeff_a2"]
 
-    # Calculate base Solar Flux input footprint
     energy_input_w = ap_area * it
 
-    # Numerical convergence loop for fluid properties tracking dependent variables
-    t_out_guess = t_in + 2.0  # seed initial assumption
+    t_out_guess = t_in + 2.0  
     max_iterations = 8
     tolerance = 1e-4
     
@@ -253,31 +305,21 @@ def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area=7.2, 
     for _ in range(max_iterations):
         t_mean_exec = (t_in + t_out_guess) / 2.0
         cp_exec, rho_exec = estimate_water_properties(t_mean_exec)
-        
-        # Volumetric LPH conversion to true thermodynamic Mass Flux (kg/sec)
-        # SQS instrumentation reads operational mass vectors via Coriolis/Vortex meters
         m_dot_exec = (flow_rate_lph * (rho_exec / 1000.0)) / 3600.0
-        
-        # Compute standard operational loss profile variable: (Tm - Ta) / IT
         reduced_temperature = (t_mean_exec - t_amb) / it
-        
-        # Extended European Standard solar collector equation execution
         efficiency_exec = eta0 - a1 * reduced_temperature - a2 * (reduced_temperature**2) * it
         
-        # Apply boundary thresholds seen in raw test logs
         if efficiency_exec < 0.0: efficiency_exec = 0.0
         if efficiency_exec > 0.95: efficiency_exec = 0.95
         
         energy_output_exec = energy_input_w * efficiency_exec
         
-        # Recalculate Delta-T gain based on current iteration values
         if (m_dot_exec * cp_exec) > 0:
             delta_t_exec = energy_output_exec / (m_dot_exec * cp_exec)
         else:
             delta_t_exec = 0
         t_out_new = t_in + delta_t_exec
         
-        # Check condition convergence
         if abs(t_out_new - t_out_guess) < tolerance:
             current_efficiency = efficiency_exec
             energy_output_w = energy_output_exec
@@ -292,7 +334,6 @@ def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area=7.2, 
         final_cp = cp_exec
         final_m_dot = m_dot_exec
 
-    # Low Irradiance safety overrides matching late afternoon log entries
     if it < 50.0:
         current_efficiency = 0.0
         energy_output_w = 0.0
@@ -332,7 +373,7 @@ selected_group = st.sidebar.selectbox(
 active_config = EXPERIMENTAL_REGISTRY[selected_group]
 
 # ------------------------------------------------------------------------------
-# EXTRA NEW FEATURE INTEGRATION: INDUSTRIAL APPLICATION DESIGN MATRIX
+# INDUSTRIAL APPLICATION DESIGN MATRIX
 # ------------------------------------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.header("🏢 Industrial Plant Up-Scaling Parameters")
@@ -342,7 +383,6 @@ selected_app = st.sidebar.selectbox(
 )
 app_meta = APPLICATION_REGISTRY[selected_app]
 
-# Multi-variable targeting inputs requested by user
 st.sidebar.markdown("#### Plan Targeted Thermal Shifts")
 user_target_t_in = st.sidebar.slider(
     "Desired Plant Inlet Temp (°C)",
@@ -380,7 +420,6 @@ user_latitude = st.sidebar.slider(
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🎛️ Primary Input Controls")
 
-# Flow Rate Fine-Tuning bounded within verified limits
 flow_input = st.sidebar.slider(
     "Adjust Actual Rig Flow (kg/hr)",
     min_value=float(math.floor(active_config["min_flow_observed"] - 5)),
@@ -426,7 +465,6 @@ aperture_area = st.sidebar.number_input(
     help="Locked structural parameter extracted from data column header properties."
 )
 
-# Render background profile metrics inside sidebar layout
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"### 📋 Profile: {active_config['nominal_string']}")
 st.sidebar.caption(active_config["description"])
@@ -502,7 +540,7 @@ tab_plots, tab_cross_flow, tab_meta, tab_industrial_scaling = st.tabs([
     "📈 Performance Curves & Visualizations", 
     "🔀 Multi-Flow Comparative Analysis", 
     "🗃️ Experimental Metadata Matrix",
-    "🏭 Industrial P&ID & Deployment Scoping Proposal" # New requested workspace tab
+    "🏭 Industrial P&ID & Deployment Scoping Proposal" 
 ])
 
 # ------------------------------------------------------------------------------
@@ -514,7 +552,6 @@ with tab_plots:
     col_g1, col_g2 = st.columns(2)
     
     with col_g1:
-        # Plot 1: Efficiency Curve Mapping across variable Solar Radiation profiles
         fig1, ax1 = plt.subplots(figsize=(7, 4))
         irradiance_sweep = np.linspace(100, 1100, 100)
         efficiency_sweep = []
@@ -533,7 +570,6 @@ with tab_plots:
         st.pyplot(fig1)
         
     with col_g2:
-        # Plot 2: Output Temperature Gain vs Actual Flow Rate Settings
         fig2, ax2 = plt.subplots(figsize=(7, 4))
         flow_sweep_bounds = np.linspace(active_config["min_flow_observed"] - 10, active_config["max_flow_observed"] + 10, 100)
         delta_t_sweep = []
@@ -560,7 +596,6 @@ with tab_cross_flow:
     
     comparative_dataset = []
     for flow_key, configuration in EXPERIMENTAL_REGISTRY.items():
-        # Execute solver using standard reference flow anchors
         sim_res = solve_collector_thermodynamics(
             flow_rate_lph=configuration["mean_flow_rate"],
             t_in=t_in_input,
@@ -580,10 +615,8 @@ with tab_cross_flow:
         
     st.table(pd.DataFrame(comparative_dataset))
     
-    # Render comparative analysis plot
     fig3, ax3 = plt.subplots(figsize=(14, 4.5))
     reduced_temp_axis = np.linspace(0.01, 0.25, 150)
-    
     colors_palette = {100: '#E63946', 200: '#F4A261', 300: '#2A9D8F', 400: '#1D3557'}
     
     for flow_key, configuration in EXPERIMENTAL_REGISTRY.items():
@@ -591,7 +624,6 @@ with tab_cross_flow:
         eta_bounded = np.clip(eta * 100.0, 0, 100)
         ax3.plot(reduced_temp_axis, eta_bounded, label=f"{flow_key} LPH Efficiency Envelope", color=colors_palette[flow_key], lw=2)
         
-    # Mark current context position on efficiency plot
     t_mean_current = t_in_input + (metrics["delta_t"] / 2.0)
     current_x_pos = (t_mean_current - t_amb_input) / (it_input if it_input > 0 else 1.0)
     
@@ -624,7 +656,6 @@ with tab_meta:
         })
     st.dataframe(pd.DataFrame(meta_records), use_container_width=True)
     
-    # Contextual behavioral logs highlighting physics trends in your files
     st.markdown("### 🔍 Verified Experimental Physics Log Analysis")
     if selected_group >= 300:
         st.info(
@@ -640,38 +671,31 @@ with tab_meta:
         )
 
 # ------------------------------------------------------------------------------
-# EXTRA NEW FEATURE INTEGRATION: TAB 4: PLANT SCALING MODEL & SCHEMATICS
+# TAB 4: PLANT SCALING MODEL & SCHEMATICS WITH COMPREHENSIVE INDUSTRIAL DATA
 # ------------------------------------------------------------------------------
 with tab_industrial_scaling:
     st.header(f"⚙️ Plant Integration Blueprint & Infrastructure Sizing Matrix")
     st.markdown(f"**Selected Sector Application Strategy:** {selected_app}")
     
-    # --- SUBSYSTEM MATH 1: SOLAR HORIZON SIMULATION FROM LATITUDE ---
-    # Model a synthetic clear-sky insulation daylight sweep matching user's latitude footprint
     solar_hours = np.array([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18])
     lat_rad = math.radians(abs(user_latitude))
-    # Approximate midday peak based on latitude variance attenuation
     peak_flux = max(350.0, 1020.0 * math.cos(lat_rad) - 50.0)
     
     hourly_irradiance = []
     for hr in solar_hours:
-        # Sinusoidal baseline modeling standard sunshine path
         ang = math.pi * (hr - 6) / 12
         flux_step = peak_flux * math.sin(ang) if (hr >= 6 and hr <= 18) else 0.0
         hourly_irradiance.append(max(0.0, flux_step))
         
     hourly_irradiance = np.array(hourly_irradiance)
     
-    # --- SUBSYSTEM MATH 2: COMPUTE CRITICAL CONVERSION LIMITS ---
     mean_target_t = (user_target_t_in + user_target_t_out) / 2.0
     scaled_cp, scaled_rho = estimate_water_properties(mean_target_t)
     
-    # Mass calculations for process fluid delivery demands
     total_mass_kg = user_daily_volume * (scaled_rho / 1000.0)
     energy_needed_joules = total_mass_kg * scaled_cp * (user_target_t_out - user_target_t_in)
     energy_needed_kwh = energy_needed_joules / 3600000.0
     
-    # Find integrated performance across midday operational curves to establish base area needs
     midday_test = solve_collector_thermodynamics(
         flow_rate_lph=active_config["mean_flow_rate"],
         t_in=user_target_t_in,
@@ -684,12 +708,9 @@ with tab_industrial_scaling:
     integrated_efficiency = max(15.0, midday_test["efficiency_pct"]) / 100.0
     total_solar_flux_kwh_m2 = np.sum(hourly_irradiance) / 1000.0
     
-    # Total scaled engineering metrics
     computed_ideal_area = energy_needed_kwh / (total_solar_flux_kwh_m2 * integrated_efficiency) if total_solar_flux_kwh_m2 > 0 else 100.0
-    # Distribute flow evenly assuming a standard 7-hour solid capture cycle window
     computed_ideal_flow = user_daily_volume / 7.0 
     
-    # --- DISPLAY METRIC SCOPING BLOCK ---
     st.subheader("📋 Sized Engineering Allocation Targets")
     col_p1, col_p2, col_p3, col_p4 = st.columns(4)
     with col_p1:
@@ -701,13 +722,11 @@ with tab_industrial_scaling:
     with col_p4:
         st.metric("Regional Peak Solar Radiation", f"{peak_flux:.1f} W/m²")
         
-    # --- RENDER DYNAMIC P&ID DRAWING DIAGRAMS ---
     st.subheader("🔀 Dedicated Piping & Instrumentation Diagram Schematic Layout")
     st.markdown("Below is the specific schematic routing strategy required to safely mesh the collector architecture with production plant loops:")
-    st.markdown(f'<div class="pid-block">{app_meta["p_and_id"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<pre class="pid-block">{app_meta["p_and_id"]}</pre>', unsafe_allow_html=True)
     st.caption(f"**P&ID Control Directives:** {app_meta['notes']}")
     
-    # --- PUMP RUN TIME AND ENERGY CUT-OUT CONTROLLER ---
     st.subheader("⏱️ Rig Smart Pump Automation Schedule Controller")
     st.markdown("Pumps activate explicitly when structural fluid solar yield outweighs cooling losses to prevent the solar system from running in reverse as an atmospheric radiator.")
     
@@ -753,7 +772,6 @@ with tab_industrial_scaling:
         
     st.table(pd.DataFrame(pump_timelines))
     
-    # --- FINAL FULL ENGINEERING PROPOSAL PACKAGE OUTPUT ---
     st.markdown('<div class="proposal-section">', unsafe_allow_html=True)
     st.subheader("📄 Commercial Plant Deployment Proposal & Feasibility Spec Sheet")
     st.markdown(f"""
