@@ -34,18 +34,6 @@ st.markdown("""
     h1, h2, h3 {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
-    .pid-block {
-        background-color: #0B0F19 !important;
-        color: #38BDF8 !important;
-        font-family: 'Courier New', Courier, monospace !important;
-        font-size: 11px !important;
-        padding: 20px !important;
-        border-radius: 4px !important;
-        white-space: pre !important;
-        overflow-x: auto !important;
-        border: 2px solid #334155;
-        line-height: 1.22 !important;
-    }
     .proposal-section {
         background-color: #FFFDF5 !important;
         border: 1px solid #F5E6D3 !important;
@@ -115,62 +103,61 @@ EXPERIMENTAL_REGISTRY = {
 }
 
 # ==============================================================================
-# APPLICATION LAYER SPECIFICATION REGISTRY WITH A4 BLUEPRINT INDUSTRIAL P&IDs
+# APPLICATION REGISTRY - GRAPHVIZ PROPER GRAPHICAL FLOWCHART DEFINITIONS
 # ==============================================================================
 APPLICATION_REGISTRY = {
     "Pharmaceuticals": {
         "default_t_in": 45.0,
         "default_t_out": 85.0,
         "default_daily_volume": 15000,
-        "p_and_id": """
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── PHARMACEUTICAL WFI WATER MANIFOLD LOOP  │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│                       SOLAR COLLECTOR ARRAY MANIFOLD FIELD [SC-101]                              │
-│                      ┌──────────────────────────────────────────────┐                            │
-│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
-│                      └──────────────────────┬───────────────────────┘                            │
-│                                             │                                                    │
-│                                             ▼                                                    │
-│                                      [TE] [TT-101]                                               │
-│                                      ──■───────┬─────────────────────────────────┐               │
-│                                                │                                 │               │
-│                                                │ -e-e-e- (4-20mA Signal)         │               │
-│                                                ▼                                 │               │
-│                                            [TIC-101] ─── (DCS CONTROLLER)        │               │
-│                                                │                                 │               │
-│                                                │ - - - - (Pneumatic Link)        │               │
-│                                                ▼                                 ▼               │
-│                                           [TV-101]                         [LSH-102]             │
-│                                      3-Way Modulating                      (High-Limit)          │
-│                                            X-Over                                │               │
-│                                            / | \                                 │               │
-│               ┌───────────────────────────┘  │  └──────────────────────┐         │               │
-│               │ (Temp >= 85°C)               │                         │         │               │
-│               ▼                              │                         ▼         ▼               │
-│       ┌───────────────┐                      │                 ┌───────────────────────┐         │
-│       │ | | | | | | | │                      │                 │  ___________________  │         │
-│ WFI───┤►| | | | | | | ├─► TO STORAGE         │                 │ ┌───────────────────┐ │         │
-│ IN    │ | | | | | | | │  [TK-103]            │                 │ │     RECIRCULATION │ │         │
-│       └───────┬───────┘                      │                 │ │       BUFFER TANK │ │         │
-│            HX-101                            │                 │ │        [TK-102]   │ │         │
-│       Shell & Tube Exch                      ▼                 │ └─────────┬─────────┘ │         │
-│                                    (Low-Temp Divert Loop)      │___________│___________│         │
-│                                              │                             │                     │
-│                                              └─────────────────────────────┤                     │
-│                                                                            ▼                     │
-│        UTILITY INTAKE ───[FE-102]─────[V-101]───────────( P-101A/B )───────┘                     │
-│                            [FT]       Gate Vlv        Centrifugal Pump                           │
-│                                                                                                  │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
-├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
-│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
-│  -e-  Electrical Signal Cable    [TIC] Temp Controller   │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
-│  - -  Pneumatic Control Line     [TV] Control Valve      │ DRAWING NO: PID-WFI-101   REV: 2026.A1 │
-│  ──■── Inline Sensor Well         (P) Centrifugal Pump   │ SCALE: NTS                SIZE: A4     │
-└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
+        "graphviz_dot": """
+digraph G {
+    fontname="Arial"; fontsize=11; pad=0.5;
+    nodesep=0.6; ranksep=0.4; rankdir=LR;
+    bgcolor="#FAFAFA";
+    
+    node [fontname="Arial" fontsize=10 shape=box style="filled,rounded" fillcolor="#FFFFFF" color="#475569" penwidth=1.5];
+    edge [fontname="Arial" fontsize=9 color="#1E293B" penwidth=1.3];
+
+    // Main Equipment Layout Blocks
+    subgraph cluster_field {
+        label = "SOLAR COLLECTOR FIELD [SC-101]";
+        fontname="Arial Bold"; fontsize=11; color="#E2E8F0"; style="filled,dashed"; fillcolor="#F8FAFC";
+        Collector [label="☀️ Solar Collector Array\\n(7.2 m² Surface)" shape=component color="#EA580C" fillcolor="#FFEDD5" penwidth=2];
+    }
+
+    subgraph cluster_skid {
+        label = "PHARMACEUTICAL UTILITY LOOP SKID";
+        fontname="Arial Bold"; fontsize=11; color="#CBD5E1"; style="filled"; fillcolor="#F1F5F9";
+        
+        Sensor [label="[TE / TT-101]\\nInline Temp Element" shape=circle color="#2563EB" fillcolor="#DBEAFE"];
+        DCS [label="[TIC-101]\\nCentral DCS Controller" shape=doublecircle color="#1E3A8A" fillcolor="#EFF6FF"];
+        Valve [label="[TV-101]\\n3-Way Divert Valve" shape=diamond color="#D97706" fillcolor="#FEF3C7"];
+        HX [label="[HX-101]\\nShell & Tube Exchanger" shape=box3d color="#059669" fillcolor="#D1FAE5"];
+        BufferTank [label="[TK-102]\\nRecirculation Buffer Tank" shape=cylinder color="#475569" fillcolor="#F8FAFC"];
+        Pump [label="[P-101A/B]\\nCentrifugal Pump" shape=house color="#475569" fillcolor="#F8FAFC" orientation=270];
+    }
+    
+    Storage [label="[TK-103]\\nPure WFI Storage Tank" shape=cylinder color="#059669" fillcolor="#D1FAE5"];
+    WFI_In [label="Raw WFI Inflow" shape=invhouse color="#64748B"];
+
+    // Process Flow Routes
+    Pump -> Collector [label="Cold Feed"];
+    Collector -> Sensor [label="Heated Fluid"];
+    Sensor -> Valve;
+    
+    // Divert Control Mechanism Logic
+    Valve -> HX [label="Temp >= 85°C\\n(Primary Heat Route)" color="#DC2626" fontcolor="#DC2626" penwidth=2];
+    Valve -> BufferTank [label="Temp < 85°C\\n(Low-Temp Divert Loop)" color="#2563EB" style=dashed];
+    
+    WFI_In -> HX;
+    HX -> Storage [label="Sterilized WFI Stock" color="#059669" penwidth=2];
+    BufferTank -> Pump;
+
+    // Instrumentation Control Network Loop Paths
+    Sensor -> DCS [label="4-20mA Signal" style=dotted color="#DC2626"];
+    DCS -> Valve [label="Pneumatic Actuate" style=dotted color="#DC2626"];
+}
 """,
         "notes": "Requires strict temperature tracking via TT-101/TIC-101 logic gates to guarantee zero unpasteurized bypass fluid into secondary pure loops."
     },
@@ -178,53 +165,49 @@ APPLICATION_REGISTRY = {
         "default_t_in": 50.0,
         "default_t_out": 75.0,
         "default_daily_volume": 35000,
-        "p_and_id": """
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── DAIRY COMMERCIAL PASTEURIZATION SKID    │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│                       HIGH EFFICIENCY THERMAL SOLAR ARRAY FIELD [SC-201]                         │
-│                      ┌──────────────────────────────────────────────┐                            │
-│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
-│                      └──────────────────────┬───────────────────────┘                            │
-│                                             │                                                    │
-│                                             ▼                                                    │
-│                                      [TE] [FIT-201]                                              │
-│                                      ──■───────■─────────────────────────┐                        │
-│                                                │                         │                        │
-│                                                │ -e-e-e- (Modbus)        │                        │
-│                                                ▼                         ▼                        │
-│                                            [PLC-200]                 [FCV-201]                    │
-│                                         Central Command           Proportional Vlv                │
-│                                                │                         │                        │
-│                                                │ - - - - (Pneumatic)     │                        │
-│                                                ▼                         │                        │
-│                                            [FCV-202]                     │                        │
-│                                         Pneumatic Feed                   │                        │
-│                                                │                         │                        │
-│               ┌────────────────────────────────┘                         │                        │
-│               │                                                          │                        │
-│               ▼                                                          ▼                        │
-│       ┌───────────────┐                                        ┌───────────────────┐              │
-│  RAW  │   =========   │                                        │  _______________  │              │
-│ MILK──┤►  =========   ├───────────────────────────────────────►│ ┌───────────────┐ │              │
-│ IN    │   =========   │                                        │ │  PASTEURIZED  │ │              │
-│       └───────┬───────┘                                        │ │ STORAGE RECPT │ │              │
-│            HX-201                                              │ │   [TK-202]    │ │              │
-│       Plate Pasteurizer                                        │ └───────────────┘ │              │
-│                                                                │___________________│              │
-│                                                                                                   │
-│  CLEAN-IN-PLACE (CIP) WATER SUPPLY ───[V-202]─────────( P-201 )──────────┘                        │
-│                                      Sanitary Vlv   Sanitary Pump                                 │
-│                                                                                                   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
-├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
-│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
-│  -e-  Electrical Signal Cable    [FIT] Flow Indicator TR │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
-│  - -  Pneumatic Control Line     [FCV] Flow Control Vlv  │ DRAWING NO: PID-DRY-201   REV: 2026.A2 │
-│  ──■── Inline Sensor Well         (P) Pump Assembly      │ SCALE: NTS                SIZE: A4     │
-└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
+        "graphviz_dot": """
+digraph G {
+    fontname="Arial"; fontsize=11; pad=0.5; rankdir=LR;
+    bgcolor="#FAFAFA";
+    node [fontname="Arial" fontsize=10 shape=box style="filled,rounded" fillcolor="#FFFFFF" color="#475569" penwidth=1.5];
+    edge [fontname="Arial" fontsize=9 color="#1E293B" penwidth=1.3];
+
+    subgraph cluster_field {
+        label = "HIGH EFFICIENCY SOLAR FIELD [SC-201]";
+        fontname="Arial Bold"; color="#E2E8F0"; style="filled,dashed"; fillcolor="#F8FAFC";
+        Collector [label="☀️ Solar Field Array\\n(7.2 m² Surface)" shape=component color="#EA580C" fillcolor="#FFEDD5"];
+    }
+
+    subgraph cluster_pasteurizer {
+        label = "SANITARY PASTEURIZATION MANIFOLD";
+        fontname="Arial Bold"; color="#CBD5E1"; style="filled"; fillcolor="#F1F5F9";
+        
+        Sensors [label="[TE / FIT-201]\\nTemp & Flow Elements" shape=circle color="#2563EB" fillcolor="#DBEAFE"];
+        PLC [label="[PLC-200]\\nCentral Control Unit" shape=doublecircle color="#1E3A8A" fillcolor="#EFF6FF"];
+        ModValve [label="[FCV-201]\\nProportional Flow Valve" shape=diamond color="#D97706" fillcolor="#FEF3C7"];
+        HX [label="[HX-201]\\nPlate Pasteurizer Skid" shape=box3d color="#059669" fillcolor="#D1FAE5"];
+        SanPump [label="[P-201]\\nSanitary Feed Pump" shape=house color="#475569" fillcolor="#F8FAFC" orientation=270];
+    }
+    
+    RawMilk [label="Raw Milk Intake" shape=invhouse color="#64748B"];
+    PasteurizedStorage [label="[TK-202]\\nPasteurized Storage Vat" shape=cylinder color="#059669" fillcolor="#D1FAE5"];
+
+    // Process Pathways
+    SanPump -> Collector [label="Process Loop Feed"];
+    Collector -> Sensors [label="Thermal Return"];
+    Sensors -> ModValve;
+    ModValve -> HX [label="Regulated Hot Water"];
+    
+    RawMilk -> HX [label="Raw Stream Input" color="#2563EB"];
+    HX -> PasteurizedStorage [label="Pasteurized Milk" color="#059669" penwidth=2];
+    HX -> SanPump [label="Recycle Return Loop"];
+
+    // Automation Links
+    print [label="CIP Loop Valve" shape=box style=dashed];
+    print -> SanPump [style=dashed];
+    Sensors -> PLC [label="Modbus Output" style=dotted color="#DC2626"];
+    PLC -> ModValve [label="Pneumatic Signal" style=dotted color="#DC2626"];
+}
 """,
         "notes": "Maintains precise micro-gap feedback adjustments via PLC automation loops to manage tight bio-layer structural tolerances."
     },
@@ -232,53 +215,46 @@ APPLICATION_REGISTRY = {
         "default_t_in": 30.0,
         "default_t_out": 90.0,
         "default_daily_volume": 60000,
-        "p_and_id": """
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── HIGH VOLUME TEXTILE DYE SKID EXPANSION   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│                       BULK SOLAR RADIATION HEAT TRANSFER COLLECTORS [SC-301]                     │
-│                      ┌──────────────────────────────────────────────┐                            │
-│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
-│                      └──────────────────────┬───────────────────────┘                            │
-│                                             │                                                    │
-│                                             ▼                                                    │
-│                                      [TE] [PT-301]                                               │
-│                                      ──■───────■─────────────────────────┐                        │
-│                                                │                         │                        │
-│                                                ▼                         ▼                        │
-│                                            [TIC-301]                 [PIC-301]                    │
-│                                         Temp Controller           Press Controller                │
-│                                                │                         │                        │
-│                                                └────────────┬────────────┘                        │
-│                                                             │ -e-e-e- (Interlock Link)            │
-│                                                             ▼                                     │
-│                                                          [Y-301] 安全继电器                        │
-│                                                             │                                     │
-│                                                             ▼                                     │
-│                                                         [HCV-301] ─── High Volume Valve           │
-│                                                             │                                     │
-│                                                             ▼                                     │
-│                                                 ┌───────────────────────┐                         │
-│                                                 │  ___________________  │                         │
-│                                                 │ ┌───────────────────┐ │                         │
-│       ┌───────────────────┐                     │ │    THERMAL BULK   │ │                         │
-│ RECIRC│   =============   │                     │ │   STORAGE BUFFER  │ │                         │
-│ LINE ─┼──►=============   ├────────────────────►│ │      [TK-301]     │ │                         │
-│       │   =============   │                     │ └─────────┬─────────┘ │                         │
-│       └─────────┬─────────┘                     │___________│___________│                         │
-│              ( P-301 )                                      │                                     │
-│          High Mass Duty Pump                                ▼                                     │
-│                                                    DYEING VAT PROCESS MIXER                       │
-│                                                                                                   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
-├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
-│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
-│  -e-  Electrical Signal Cable    [PT] Pressure Transmit  │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
-│  - -  Pneumatic Control Line     [Y] Interlock Relay     │ DRAWING NO: PID-TEX-301   REV: 2026.A1 │
-│  ──■── Inline Sensor Well         (P) Heavy Pump Mech    │ SCALE: NTS                SIZE: A4     │
-└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
+        "graphviz_dot": """
+digraph G {
+    fontname="Arial"; fontsize=11; pad=0.5; rankdir=LR;
+    bgcolor="#FAFAFA";
+    node [fontname="Arial" fontsize=10 shape=box style="filled,rounded" fillcolor="#FFFFFF" color="#475569" penwidth=1.5];
+    edge [fontname="Arial" fontsize=9 color="#1E293B" penwidth=1.3];
+
+    subgraph cluster_field {
+        label = "BULK THERMAL RAD COLLECTORS [SC-301]";
+        fontname="Arial Bold"; color="#E2E8F0"; style="filled,dashed"; fillcolor="#F8FAFC";
+        Collector [label="☀️ Bulk Solar Elements" shape=component color="#EA580C" fillcolor="#FFEDD5"];
+    }
+
+    subgraph cluster_safety {
+        label = "HIGH MASS MIXING SYSTEM";
+        fontname="Arial Bold"; color="#CBD5E1"; style="filled"; fillcolor="#F1F5F9";
+        
+        Transmitters [label="[TE / PT-301]\\nTemp & Pressure Well" shape=circle color="#2563EB" fillcolor="#DBEAFE"];
+        TIC [label="[TIC-301]\\nTemp Controller" shape=doublecircle color="#1E3A8A" fillcolor="#EFF6FF"];
+        Relay [label="[Y-301]\\nSafety Interlock Relay" shape=diamond color="#DC2626" fillcolor="#FEE2E2"];
+        Valve [label="[HCV-301]\\nHigh Volume Dump Valve" shape=box color="#D97706" fillcolor="#FEF3C7"];
+        Buffer [label="[TK-301]\\nThermal Mass Storage" shape=cylinder color="#475569" fillcolor="#F8FAFC"];
+        Pump [label="[P-301]\\nHeavy Duty Recirc Pump" shape=house color="#475569" fillcolor="#F8FAFC" orientation=270];
+    }
+    
+    DyeVat [label="Dyeing Vat Mixer Process" shape=box3d color="#059669" fillcolor="#D1FAE5"];
+
+    // Connections
+    Pump -> Collector;
+    Collector -> Transmitters;
+    Transmitters -> Valve;
+    Valve -> Buffer [label="Mass Yield Feed" color="#059669" penwidth=2];
+    Buffer -> DyeVat [label="Direct Heating Output"];
+    DyeVat -> Pump [label="Recirculation Loop Return"];
+
+    // Controls Logic Interlock
+    Transmitters -> TIC [style=dotted color="#DC2626"];
+    TIC -> Relay [style=dotted color="#DC2626"];
+    Relay -> Valve [label="Safety Release" style=dotted color="#DC2626"];
+}
 """,
         "notes": "Optimized for raw plant sizing margins handling high volume throughput with rapid cycle dump valves."
     },
@@ -286,51 +262,44 @@ APPLICATION_REGISTRY = {
         "default_t_in": 60.0,
         "default_t_out": 115.0,
         "default_daily_volume": 20000,
-        "p_and_id": """
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[A4 DRAWING BOUNDS]   PIPING & INSTRUMENTATION DIAGRAM ── POWER UTILITY BOILER FEED REGULATOR      │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                  │
-│                       HIGH ENTHALPY PARABOLIC DISH Array [SC-401]                                │
-│                      ┌──────────────────────────────────────────────┐                            │
-│                      │    ☀️      ☀️      ☀️      ☀️      ☀️     │                            │
-│                      └──────────────────────┬───────────────────────┘                            │
-│                                             │                                                    │
-│                                             ▼                                                    │
-│                                      [TE] [PT-401]                                               │
-│                                      ──■───────■─────────────────────────┐                        │
-│                                                │                         │                        │
-│                                                ▼                         ▼                        │
-│                                            [TT-401]                  [PIT-401]                    │
-│                                         Temp Transmitter          Press Indicator                 │
-│                                                │                         │                        │
-│                                                └────────────┬────────────┘                        │
-│                                                             │ -e-e-e-                             │
-│                                                             ▼                                     │
-│                                                         [PCV-401] ─── Pilot Balanced Reg          │
-│                                                             │                                     │
-│                                                             ▼                                     │
-│                                                 ┌───────────────────────┐                         │
-│                                                 │     (DRUM BOILER)     │                         │
-│       ┌───────────────┐                         │  ___________________  │                         │
-│       │ XXXXXXXXXXXXX │                         │ ┌───────────────────┐ │                         │
-│ FEED ─┤►XXXXXXXXXXXXX ├────────────────────────►│ │ HIGH PRESS ACCUM  │ ├─► TURBINE STEAM OVERFLOW│
-│ LOOP  │ XXXXXXXXXXXXX │                         │ │      [TK-402]     │ │                         │
-│       └───────┬───────┘                         │ └───────────────────┘ │                         │
-│            HX-401                               │_______________________│                         │
-│       High-Press Exch                                                                             │
-│                                                                                                   │
-│   CONDENSATE FLUID FEEDBACK VECTOR ────────( P-401 )──────────────────┘                           │
-│                                         Multi-Stage Injection                                     │
-│                                                                                                   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│  LEGEND & SYMBOLS REFERENCE (ISA-S5.1)                  │ DRAWING CONTROL METADATA MATRIX        │
-├─────────────────────────────────────────────────────────┼────────────────────────────────────────┤
-│  ───  Primary Process Piping     [TE] Temp Element       │ PROJECT: SQS SOLAR MATRIX INTEGRATION  │
-│  -e-  Electrical Signal Cable    [PT] Pressure Transmit  │ ASSIGNMENT: AUTOMATED THERMAL UTILITY  │
-│  - -  Pneumatic Control Line     [PCV] Press Ctrl Valve  │ DRAWING NO: PID-POW-401   REV: 2026.A3 │
-│  ──■── Inline Sensor Well         (P) Multi-Stage Pump   │ SCALE: NTS                SIZE: A4     │
-└─────────────────────────────────────────────────────────┴────────────────────────────────────────┘
+        "graphviz_dot": """
+digraph G {
+    fontname="Arial"; fontsize=11; pad=0.5; rankdir=LR;
+    bgcolor="#FAFAFA";
+    node [fontname="Arial" fontsize=10 shape=box style="filled,rounded" fillcolor="#FFFFFF" color="#475569" penwidth=1.5];
+    edge [fontname="Arial" fontsize=9 color="#1E293B" penwidth=1.3];
+
+    subgraph cluster_field {
+        label = "HIGH ENTHALPY PARABOLIC DISH ARRAY [SC-401]";
+        fontname="Arial Bold"; color="#E2E8F0"; style="filled,dashed"; fillcolor="#F8FAFC";
+        Collector [label="☀️ Parabolic Concentrator Field" shape=component color="#EA580C" fillcolor="#FFEDD5"];
+    }
+
+    subgraph cluster_steam {
+        label = "BOILER REGULATION SYSTEM";
+        fontname="Arial Bold"; color="#CBD5E1"; style="filled"; fillcolor="#F1F5F9";
+        
+        Instruments [label="[TE / PT-401]\\nHigh-Press/Temp Loop" shape=circle color="#2563EB" fillcolor="#DBEAFE"];
+        Regulator [label="[PCV-401]\\nPilot Balanced Regulator" shape=diamond color="#D97706" fillcolor="#FEF3C7"];
+        HX [label="[HX-401]\\nHigh-Press Heat Exchanger" shape=box3d color="#059669" fillcolor="#D1FAE5"];
+        Drum [label="[TK-402]\\nHigh Press Steam Accumulator" shape=cylinder color="#475569" fillcolor="#F8FAFC"];
+        Pump [label="[P-401]\\nMulti-Stage Injection Pump" shape=house color="#475569" fillcolor="#F8FAFC" orientation=270];
+    }
+    
+    Turbine [label="TO STEAM OVERFLOW TURBINE" shape=component color="#DC2626" fillcolor="#FEE2E2" penwidth=2];
+    FeedLoop [label="Condensate Feedback Feed" shape=invhouse color="#64748B"];
+
+    // Piping Routes
+    Pump -> Collector [label="High-Press Liquid"];
+    Collector -> Instruments;
+    Instruments -> Regulator;
+    Regulator -> HX [label="Superheated Stream Vector"];
+    HX -> Drum;
+    
+    FeedLoop -> HX;
+    Drum -> Turbine [label="High Enthalpy Steam Output" color="#DC2626" penwidth=2];
+    Drum -> Pump [label="Condensate Recycle Line"];
+}
 """,
         "notes": "Operates under enhanced high-pressure threshold limits. High safety factor pressure relief valve monitoring is compulsory."
     }
@@ -636,8 +605,8 @@ with tab_plots:
             
         ax1.plot(irradiance_sweep, efficiency_sweep, color='#FF4B4B', lw=2.5, label='Regressed Efficiency Vector')
         ax1.axvline(x=it_input, color='#1C83E1', linestyle='--', label=f'Active Input Setpoint ({it_input} W/m²)')
-        ax1.set_title("Instantaneous Efficiency ($\eta$) vs Solar Radiation Intensity ($I_T$)", fontsize=10, fontweight='bold')
-        ax1.set_xlabel("Solar Irradiance $I_T$ (W/m²)", fontsize=9)
+        ax1.set_title("Instantaneous Efficiency vs Solar Radiation Intensity", fontsize=10, fontweight='bold')
+        ax1.set_xlabel("Solar Irradiance (W/m²)", fontsize=9)
         ax1.set_ylabel("Efficiency (%)", fontsize=9)
         ax1.grid(True, linestyle=':', alpha=0.6)
         ax1.legend(fontsize=8)
@@ -654,9 +623,9 @@ with tab_plots:
             
         ax2.plot(flow_sweep_bounds, delta_t_sweep, color='#2BD387', lw=2.5, label='Predicted Thermal Gain')
         ax2.axvline(x=flow_input, color='#1C83E1', linestyle='--', label=f'Current Setting ({flow_input:.1f} kg/hr)')
-        ax2.set_title("Fluid Temperature Jump ($\Delta T$) vs Mass Flow Spectrum", fontsize=10, fontweight='bold')
+        ax2.set_title("Fluid Temperature Jump vs Mass Flow Spectrum", fontsize=10, fontweight='bold')
         ax2.set_xlabel("Regulated Flow Rate (kg/hr)", fontsize=9)
-        ax2.set_ylabel("Delta Temperature $\Delta T$ (°C)", fontsize=9)
+        ax2.set_ylabel("Delta Temperature (°C)", fontsize=9)
         ax2.grid(True, linestyle=':', alpha=0.6)
         ax2.legend(fontsize=8)
         st.pyplot(fig2)
@@ -704,9 +673,9 @@ with tab_cross_flow:
     if it_input > 0:
         ax3.plot(current_x_pos, metrics["efficiency_pct"], 'ko', markersize=10, label=f"Active Simulation Coordinate ({current_x_pos:.4f}, {metrics['efficiency_pct']:.1f}%)")
         
-    ax3.set_title("Characteristic System Efficiency Envelopes ($\eta$ vs $(T_{mean} - T_{amb}) / I_T$)", fontsize=11, fontweight='bold')
-    ax3.set_xlabel("Reduced Temperature Parameter Vector $T^*$ ($m^2 \cdot K / W$)", fontsize=9)
-    ax3.set_ylabel("Collector Efficiency Percentage ($\%$)", fontsize=9)
+    ax3.set_title("Characteristic System Efficiency Envelopes", fontsize=11, fontweight='bold')
+    ax3.set_xlabel("Reduced Temperature Parameter Vector", fontsize=9)
+    ax3.set_ylabel("Collector Efficiency Percentage", fontsize=9)
     ax3.set_ylim(0, 100)
     ax3.grid(True, linestyle='--', alpha=0.5)
     ax3.legend(fontsize=9, loc='upper right')
@@ -723,9 +692,9 @@ with tab_meta:
     for flow_key, val in EXPERIMENTAL_REGISTRY.items():
         meta_records.append({
             "Nominal Group": val["nominal_string"],
-            "Intercept Coeff (η₀)": val["intercept_eta0"],
-            "Linear Loss Factor (a₁)": val["loss_coeff_a1"],
-            "Quadratic Loss Factor (a₂)": val["loss_coeff_a2"],
+            "Intercept Coeff (eta0)": val["intercept_eta0"],
+            "Linear Loss Factor (a1)": val["loss_coeff_a1"],
+            "Quadratic Loss Factor (a2)": val["loss_coeff_a2"],
             "Target Rig Log Files": ", ".join(val["associated_files"])
         })
     st.dataframe(pd.DataFrame(meta_records), use_container_width=True)
@@ -735,17 +704,17 @@ with tab_meta:
         st.info(
             f"⚡ **High Turbulent Transfer Detected ({selected_group} LPH Config):** Operating at high fluid velocities limits fluid residence times "
             f"within the copper riser circuits. This minimizes the temperature gradient across the insulation, suppressing localized thermal emissions. "
-            f"Result: Instantaneous efficiency curves track higher values, but fluid temperature gains ($\Delta T$) are narrower."
+            f"Result: Instantaneous efficiency curves track higher values, but fluid temperature gains are narrower."
         )
     else:
         st.warning(
             f"🌡️ **High Thermal Residence Detected ({selected_group} LPH Config):** Low flow velocity settings allow water components to absorb "
-            f"solar heat for longer periods within the header tubes. This drives large absolute temperature rises ($\Delta T$), but increases convective "
+            f"solar heat for longer periods within the header tubes. This drives large absolute temperature rises, but increases convective "
             f"and radiative heat loss from the collector surface back to the surrounding atmosphere."
         )
 
 # ------------------------------------------------------------------------------
-# TAB 4: PLANT SCALING MODEL & SCHEMATICS WITH INDUSTRIAL COMPLIANT A4 SPEC
+# TAB 4: PLANT SCALING MODEL & PROPER GRAPHICAL GRAPHVIZ P&ID DIAGRAMS
 # ------------------------------------------------------------------------------
 with tab_industrial_scaling:
     st.header(f"⚙️ Plant Integration Blueprint & Infrastructure Sizing Matrix")
@@ -796,10 +765,18 @@ with tab_industrial_scaling:
     with col_p4:
         st.metric("Regional Peak Solar Radiation", f"{peak_flux:.1f} W/m²")
         
-    st.subheader("🔀 Dedicated Piping & Instrumentation Diagram Blueprint Layout")
-    st.markdown("Below is the specific industrial schematic routing strategy matching professional instrumentation layouts:")
-    st.markdown(f'<pre class="pid-block">{app_meta["p_and_id"]}</pre>', unsafe_allow_html=True)
+    # --------------------------------------------------------------------------
+    # RENDERING THE INTERACTIVE GRAPHICAL DIAGRAM GRAPH
+    # --------------------------------------------------------------------------
+    st.write("---")
+    st.subheader("📌 Vector Graphics Piping & Instrumentation Diagram Flowchart")
+    st.markdown("This graphical architecture illustrates equipment blocks, tracking loops, and automation gates:")
+    
+    # Render using the Graphviz Engine directly into the UI canvas
+    st.graphviz_chart(app_meta["graphviz_dot"])
+    
     st.caption(f"**P&ID Control Directives:** {app_meta['notes']}")
+    st.write("---")
     
     st.subheader("⏱️ Rig Smart Pump Automation Schedule Controller")
     st.markdown("Pumps activate explicitly when structural fluid solar yield outweighs cooling losses to prevent the solar system from running in reverse as an atmospheric radiator.")
@@ -855,7 +832,7 @@ with tab_industrial_scaling:
     
     ### **1. Fluid Kinetic Properties & Design Scaling Constraints**
     To satisfy your daily requirement of **{user_daily_volume} Liters** shifting precisely from **{user_target_t_in}°C** up to **{user_target_t_out}°C**, the system demands an array scaled using the kinetic parameters from the **{active_config['nominal_string']}** empirical database. 
-    * **Computed Working Fluid Density (ρ):** `{scaled_rho:.2f} kg/m³` | **Specific Heat Capacity (Cp):** `{scaled_cp:.1f} J/kg·K`.
+    * **Computed Working Fluid Density (rho):** `{scaled_rho:.2f} kg/m³` | **Specific Heat Capacity (Cp):** `{scaled_cp:.1f} J/kg·K`.
     * **Recommended Sized Continuous Flow Rate Field Setpoint:** **`{computed_ideal_flow:.2f} LPH`** (This value maintains fluid dynamics within the efficient operational limits derived from your source data files).
     * **Total Calculated Aperture Surface Area Requirement:** **`{computed_ideal_area:.2f} m²`** of high-performance flat-plate or concentrated vacuum tubing elements.
     
