@@ -154,95 +154,112 @@ def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area, conf
     }
 
 # =========================================================
-# SIDEBAR
+# =========================================================
+# SIDEBAR WITH GEOGRAPHIC CORRIDOR TABS
 # =========================================================
 
-st.sidebar.header("⚙️ System Inputs")
+tab_side_process, tab_side_geo = st.sidebar.tabs(["🏭 Process", "🗺️ Location"])
 
-industry_type = st.sidebar.selectbox(
-    "Select Industry",
-    [
-        "Dairy Plant",
-        "Textile Industry",
-        "Pharmaceutical",
-        "Chemical Plant",
-        "Food Processing"
-    ]
-)
+with tab_side_process:
+    industry_type = st.selectbox(
+        "Select Industry",
+        [
+            "Dairy Plant",
+            "Textile Industry",
+            "Pharmaceutical",
+            "Chemical Plant",
+            "Food Processing"
+        ]
+    )
 
-water = st.sidebar.number_input(
-    "Daily Hot Water Requirement (LPD)",
-    min_value=100,
-    value=5000,
-    step=100
-)
+    water = st.number_input(
+        "Daily Hot Water Requirement (LPD)",
+        min_value=100,
+        value=5000,
+        step=100
+    )
 
-tout = st.sidebar.number_input(
-    "Required Output Temperature (°C)",
-    min_value=30,
-    max_value=120,
-    value=80
-)
+    tout = st.number_input(
+        "Required Output Temperature (°C)",
+        min_value=30,
+        max_value=120,
+        value=80
+    )
 
-tin = st.sidebar.number_input(
-    "Cold Water Inlet Temperature (°C)",
-    min_value=1,
-    max_value=70,
-    value=25
-)
+    tin = st.number_input(
+        "Cold Water Inlet Temperature (°C)",
+        min_value=1,
+        max_value=70,
+        value=25
+    )
 
-ambient_temp = st.sidebar.slider(
-    "Ambient Temperature (°C)",
-    10,
-    45,
-    30
-)
+    ambient_temp = st.slider(
+        "Ambient Temperature (°C)",
+        10,
+        45,
+        value=30
+    )
 
-wind_speed = st.sidebar.slider(
-    "Wind Speed (m/s)",
-    0.0,
-    10.0,
-    2.0
-)
+    wind_speed = st.slider(
+        "Wind Speed (m/s)",
+        0.0,
+        10.0,
+        value=2.0
+    )
 
-fuel_type = st.sidebar.selectbox(
-    "Backup Fuel Type",
-    [
-        "Diesel",
-        "Natural Gas",
-        "Electric Heater"
-    ]
-)
+    fuel_type = st.selectbox(
+        "Backup Fuel Type",
+        [
+            "Diesel",
+            "Natural Gas",
+            "Electric Heater"
+        ]
+    )
 
-fuel_cost = st.sidebar.number_input(
-    "Fuel Cost (₹)",
-    value=85
-)
+    fuel_cost = st.number_input(
+        "Fuel Cost (₹)",
+        value=85
+    )
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔬 Experimental Calibration Regimes")
-
-selected_group = st.sidebar.selectbox(
-    "Select Flow Stream Calibration Target",
-    options=[100, 200, 300, 400],
-    format_func=lambda val: f"{val} LPH Experimental Baseline"
-)
-
-# Bind downstream mapping system variables dynamically based on controls
-active_config = EXPERIMENTAL_REGISTRY[selected_group]
-flow_input = active_config["mean_flow_rate"]
-t_in_input = float(tin)
-t_amb_input = float(ambient_temp)
-aperture_area = 7.2
-
-it_input = st.sidebar.slider(
-    "Target Model Irradiance Peak (W/m²)",
-    min_value=100,
-    max_value=1200,
-    value=800,
-    step=50
-)
-
+with tab_side_geo:
+    st.markdown("### Latitude Solar Parameters")
+    
+    # Comprehensive Indian Geographical Latitude Array Registry
+    geo_registry = {
+        "Srinagar (North - 34.1° N)": {"lat": 34.1, "base_rad": 540, "amplitude": 380, "peak_month": 5},
+        "New Delhi (North - 28.6° N)": {"lat": 28.6, "base_rad": 660, "amplitude": 280, "peak_month": 4},
+        "Ahmedabad (West - 23.0° N)": {"lat": 23.0, "base_rad": 740, "amplitude": 210, "peak_month": 4},
+        "Kolkata (East - 22.6° N)": {"lat": 22.6, "base_rad": 710, "amplitude": 190, "peak_month": 4},
+        "Mumbai (West Central - 19.1° N)": {"lat": 19.1, "base_rad": 760, "amplitude": 180, "peak_month": 3},
+        "Bengaluru (South - 12.9° N)": {"lat": 12.9, "base_rad": 810, "amplitude": 130, "peak_month": 2},
+        "Chennai (South - 13.1° N)": {"lat": 13.1, "base_rad": 790, "amplitude": 140, "peak_month": 3},
+        "Kochi (Deep South - 9.9° N)": {"lat": 9.9, "base_rad": 820, "amplitude": 110, "peak_month": 2}
+    }
+    
+    selected_city = st.selectbox(
+        "Select Installation Site Corridors",
+        options=list(geo_registry.keys())
+    )
+    
+    # Extract structural solar data attributes based on active drop-down index selection
+    site_meta = geo_registry[selected_city]
+    
+    st.info(f"Targeting Node Coordinates: {site_meta['lat']}° N Latitude")
+    
+    # Calculate seasonal variations based on true solar declination geometry behaviors
+    months_axis = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    computed_radiation_curve = []
+    
+    for m_idx in range(1, 13):
+        phase_offset = (m_idx - site_meta["peak_month"]) * (np.pi / 6.0)
+        calculated_intensity = site_meta["base_rad"] + site_meta["amplitude"] * np.cos(phase_offset)
+        
+        # Modeling monsoon cloud cover decay profiles across varying Indian latitudes
+        if m_idx in [6, 7, 8]:
+            monsoon_loss_factor = 0.65 if site_meta["lat"] < 20 else 0.82
+            calculated_intensity *= monsoon_loss_factor
+            
+        computed_radiation_curve.append(float(np.clip(calculated_intensity, 300, 1050)))
 # Run internal solver instance to construct validation matrix metrics 
 metrics = solve_collector_thermodynamics(
     flow_rate_lph=flow_input,
