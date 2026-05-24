@@ -304,43 +304,50 @@ module_output = 22
 safety_factor = 1.15
 
 # =========================================================
-# CALCULATIONS
+# =========================================================
+# CALCULATIONS (DYNAMIC GEOGRAPHICALLY CONSTRAINED)
 # =========================================================
 
+# 1. Base Thermodynamic Energy Requirement (kWh/day)
 dt = tout - tin
-
 energy = (water * cp * dt) / 3600
 
-gross_energy = energy * safety_factor
+# 2. Extract Latitude-Specific Daily Solar Window
+# We convert the monthly W/m² irradiance curve into an annual baseline factor.
+# Standard panels operate efficiently for approx 5.5 peak sunshine hours a day in India.
+average_annual_irradiance = np.mean(computed_radiation_curve) # W/m²
 
-modules = round(gross_energy / module_output)
+# 3. Dynamic Module Output Rating based on Regional Radiation
+# Rather than assuming a hardcoded 22 kWh/day everywhere, module performance 
+# scales linearly with local irradiance compared to a standard benchmark of 800 W/m²
+regional_module_output = 22.0 * (average_annual_irradiance / 800.0)
+
+# 4. Sizing Calculations under Environmental Headroom Limits
+gross_energy = energy * safety_factor
+modules = round(gross_energy / regional_module_output)
 
 if modules < 1:
     modules = 1
 
 area = modules * module_area
-
 storage_tank_capacity = water * 1.2
 
+# 5. Fluid Dynamics Mapping
 flow_lpm = ((modules / 2) * 250) / 60
-
 flow_kghr = flow_lpm * 60
 
-efficiency = (energy / (modules * module_output)) * 100
-
+# 6. Realized System Efficiency Calculation
+# This now varies dynamically based on the localized collector count and regional sun strength
+efficiency = (energy / (modules * regional_module_output)) * 100
 efficiency = max(35, min(efficiency, 85))
 
+# 7. Annualized Yield Estimates
 annual_energy = gross_energy * 365
-
 annual_savings = annual_energy * fuel_cost * 0.25
-
 co2 = annual_energy * 0.82 / 1000
 
 project_cost = area * 14000
-
 payback = project_cost / annual_savings if annual_savings > 0 else 0
-
-# =========================================================
 # PUMP
 # =========================================================
 
