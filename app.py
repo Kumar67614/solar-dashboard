@@ -562,55 +562,121 @@ with g4:
     fig_roi.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#E5E5E5')
     st.components.v1.html(f"<div style='background-color:white; border-radius:12px; padding:10px; box-shadow: 0px 4px 12px rgba(0,0,0,0.05);'>{fig_roi.to_html(include_plotlyjs='cdn')}</div>", height=340)
 
-# ---------------------------------------------------------
-# GRAPHVIZ INDUSTRIAL P&ID (FIXED SYNTAX EXTRA ESCAPED)
-# ---------------------------------------------------------
-st.markdown('<div class="section-title">🏭 Engineered Industrial P&ID Architecture Diagram</div>', unsafe_allow_html=True)
+# =========================================================
+# INDUSTRIAL P&ID (ISA-5.1 COMPLIANT GRAPHVIZ DESIGN)
+# =========================================================
+
+st.markdown('<div class="section-title">🏭 Industrial P&ID Diagram</div>', unsafe_allow_html=True)
 
 process_map = {
-    "Dairy Plant": "Pasteurizer Line System",
-    "Textile Industry": "Dyeing Jet Machines Vats",
-    "Pharmaceutical": "Sanitary Reactor Heating Jacket",
-    "Chemical Plant": "Corrosive Chemical Preheating Vat",
-    "Food Processing": "Retort Steam / Food Batch Cooker"
+    "Dairy Plant": "Pasteurizer Unit",
+    "Textile Industry": "Dyeing Jet Vats",
+    "Pharmaceutical": "Sanitary Reactor Jacket",
+    "Chemical Plant": "Process Preheating Vat",
+    "Food Processing": "Batch Cooker Retort"
 }
+
 process_name = process_map[industry_type]
 
-# Using exact 4 backslashes (\\\\n) to survive Streamlit compilation passing raw literals to Graphviz engine
-pid_diagram_spec = f"""
+pid = f"""
 digraph G {{
+    // Layout and Engine Settings
     rankdir=LR;
-    node [fontname="Arial", fontsize=11, shape=box, style=filled, fillcolor="#F0F4F8", color="#0F52BA", penwidth=1.5];
-    edge [fontname="Arial", fontsize=9, color="#4A5568", penwidth=1.2];
+    nodesep=0.6;
+    ranksep=0.7;
+    
+    // Default formatting for standard P&ID lines
+    edge [fontname="Arial", fontsize=9, color="#2c3e50", penwidth=1.5, arrowhead=normal, arrowsize=0.8];
+    
+    // Base node properties for instrument tags and equipment
+    node [fontname="Arial", fontsize=10, shape=box, style="filled,bold", fillcolor="#ffffff", color="#2c3e50", penwidth=1.5];
 
-    ColdInlet [label="Cold Make-up Feed\\\\nInlet Water Temp: {tin}°C", shape=invhouse, fillcolor="#EBF8FF"];
+    // ---------------------------------------------------------
+    // EQUIPMENT DEFINITIONS (ISA-5.1 Standard Shapes)
+    // ---------------------------------------------------------
     
-    Tank [label="Thermal Buffer Tank\\\\nCapacity: {storage_tank_capacity:,.0f} Liters\\\\nStratified Layer Control", shape=cylinder, fillcolor="#FEFCBF", color="#D69E2E"];
-    
-    Pump [label="Circulation Loop Pump\\\\nRating: {pump_rating}\\\\nVelocity: {fluid_velocity:.2f} m/s", shape=circle, fillcolor="#C6F6D5", color="#38A169"];
-    
-    CollectorArray [label="Solar Field Array\\\\n{modules_required} Modules ({total_collector_area:.1f} m²)\\\\nTech: {collector_type}", shape=component, fillcolor="#FED7D7", color="#E53E3E"];
-    
-    HX [label="Primary Isolation\\\\nPlate Heat Exchanger", shape=diamond, fillcolor="#E2E8F0"];
-    
-    BackupBoiler [label="Auxiliary Backup Boiler\\\\nFuel Source: {fuel_type}\\\\nThermal Efficiency: {fuel_efficiency*100}%", shape=box3d, fillcolor="#E9D8FD", color="#805AD5"];
-    
-    ProcessDelivery [label="Industrial Application End-use\\\\n{process_name}\\\\nDelivery Heat: {tout}°C", shape=house, fillcolor="#ED64A6", color="#B83280"];
+    // Stratified Thermal Storage Tank (Vertical Cylinder)
+    Tank [
+        label="TK-101\\nThermal Buffer Tank\\n{storage_tank_capacity:.0f} L"
+        shape=cylinder
+        fillcolor="#fff9db"
+        color="#f59f00"
+        height=1.4
+        width=1.0
+    ];
 
-    ColdInlet -> Tank [label="Modulated Level Flow"];
-    Tank -> Pump [label="Suction Line"];
-    Pump -> CollectorArray [label="Forced Flow {flow_lpm:.1f} LPM"];
-    CollectorArray -> HX [label="Solar Thermal Glycol Fluid"];
-    HX -> Tank [label="Energy Secondary Exchange Loop"];
-    Tank -> BackupBoiler [label="Temperature Top-up Request"];
-    BackupBoiler -> ProcessDelivery [label="Guaranteed Temperature Line"];
-    ProcessDelivery -> Tank [label="Return Recirculation Residual Warm Fluid"];
+    // Centrifugal Circulation Pump (Standard Circle)
+    Pump [
+        label="P-101A\\nLoop Pump\\n{pump}"
+        shape=circle
+        fillcolor="#e2f0d9"
+        color="#385723"
+        fixedsize=true
+        width=1.1
+    ];
+
+    // Solar Thermal Collector Array
+    Collector [
+        label="⚡\\nSOLAR FIELD ARRAY\\n{modules} Manifold Modules\\n({area:.1f} m²)"
+        shape=box3d
+        fillcolor="#fce8e6"
+        color="#c00000"
+        margin="0.2,0.1"
+    ];
+
+    // Primary Utility Boiler
+    Boiler [
+        label="BLR-01\\nAuxiliary Boiler\\n({fuel_type})"
+        shape=component
+        fillcolor="#f3f0ff"
+        color="#7048e8"
+        height=1.2
+    ];
+
+    // Plate Heat Exchanger (PHE - Represented as standard Diamond/Square intersection)
+    HX [
+        label="HX-101\\nPlate Heat Exchanger"
+        shape=diamond
+        fillcolor="#e6f4ea"
+        color="#137333"
+        fixedsize=true
+        width=1.3
+        height=1.3
+    ];
+
+    // Industrial Application End Use
+    Process [
+        label="🏭\\nPROCESS END-USE\\n{process_name}\\nTarget: {tout}°C"
+        shape=house
+        fillcolor="#fbf1f5"
+        color="#d0146f"
+        margin="0.2,0.1"
+    ];
+
+    // ---------------------------------------------------------
+    // PIPING & PROCESS FLOW ROUTING
+    // ---------------------------------------------------------
+    
+    // Primary Solar Array Loop
+    Tank:s -> Pump:w [label=" Suction Line", weight=2];
+    Pump:e -> Collector:w [label=" Cold Feed\\n {flow_lpm:.1f} LPM"];
+    Collector:e -> HX:n [label=" Hot Glycol\\n Return"];
+    
+    // Thermal Storage Recirculation Loop
+    HX:s -> Tank:n [label=" Secondary Thermal\\n Charge Loop", color="#1c7ed6", penwidth=2.0];
+    
+    // Utility Balancing Lines
+    Tank:e -> Process:w [label=" Hot Water Supply\\n Delivery", color="#e03131", penwidth=2.0];
+    Boiler:e -> HX:w [label=" High-Temp\\n Top-up Request", style=dashed, color="#7048e8"];
+    HX:e -> Boiler:s [label=" Return", style=dashed, color="#7048e8"];
+    
+    // Process Return Closeout Loop
+    Process:s -> Tank:w [label=" Low-Temp Residual\\n Recirculation Return", color="#748ffc"];
 }}
 """
 
 with st.container():
-    st.graphviz_chart(pid_diagram_spec, use_container_width=True)
-
+    st.graphviz_chart(pid, use_container_width=True)
 # ---------------------------------------------------------
 # AUDIT SPECIFICATION DATA TABLE SUMMARY
 # ---------------------------------------------------------
