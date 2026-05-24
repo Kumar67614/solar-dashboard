@@ -216,7 +216,7 @@ if flow_lpm < 30:
     inner_dia_m = 0.0272
 elif flow_lpm < 80:
     pipe_size = "DN40 (1.5\")"
-    inner_dia_m = 0.041b if '0.041' else 0.0419
+    inner_dia_m = 0.0419
 else:
     pipe_size = "DN50 (2\")"
     inner_dia_m = 0.0539
@@ -299,12 +299,23 @@ payback_period_years = total_project_cost_capex / (annual_financial_savings - an
 # NPV Function Calculation
 npv_value = sum([cf / ((1 + discount_rate) ** i) for i, cf in enumerate(cash_flows)])
 
-# IRR Calculation using numpy financial simulation loop
-try:
-    irr_value = np.irr(cash_flows) if hasattr(np, 'irr') else np.fsolve(lambda r: sum([cf / ((1 + r) ** i) for i, cf in enumerate(cash_flows)]), 0.1)[0]
-    irr_percentage = irr_value * 100
-except:
-    irr_percentage = 0.0
+# Robust Internal Rate of Return (IRR) calculation logic (secant approach solver safely handling bounds)
+def calculate_irr(cfs, iterations=100):
+    r1, r2 = 0.1, 0.2
+    f1 = sum([cf / ((1 + r1) ** j) for j, cf in enumerate(cfs)])
+    for _ in range(iterations):
+        f2 = sum([cf / ((1 + r2) ** j) for j, cf in enumerate(cfs)])
+        if abs(f2 - f1) < 1e-6:
+            break
+        try:
+            r_next = r2 - f2 * (r2 - r1) / (f2 - f1)
+        except ZeroDivisionError:
+            break
+        r1, r2 = r2, r_next
+        f1 = f2
+    return r2 * 100
+
+irr_percentage = calculate_irr(cash_flows)
 
 # Carbon Mitigation mapping
 co2_factor = fuel_defaults[fuel_type]["co2"]
