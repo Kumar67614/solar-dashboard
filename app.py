@@ -640,40 +640,28 @@ fig_gauge.update_layout(height=350)
 st.plotly_chart(fig_gauge, use_container_width=True)
 
 # =========================================================
-# SOLAR RADIATION GRAPH
+# =========================================================
+# SOLAR RADIATION GRAPH (DYNAMIC GEOGRAPHIC UPDATES)
 # =========================================================
 
 st.markdown('<div class="section-title">☀️ Solar Radiation Analysis</div>', unsafe_allow_html=True)
 
-months = [
-    "Jan", "Feb", "Mar", "Apr",
-    "May", "Jun", "Jul", "Aug",
-    "Sep", "Oct", "Nov", "Dec"
-]
-
-radiation = [
-    650, 720, 850, 920,
-    980, 860, 720, 690,
-    810, 850, 760, 680
-]
-
 fig_rad = go.Figure()
 
 fig_rad.add_trace(go.Bar(
-    x=months,
-    y=radiation,
+    x=months_axis,
+    y=computed_radiation_curve, # Links directly to your dynamic latitude solver outputs
     marker_color="#f4a261"
 ))
 
 fig_rad.update_layout(
-    title="Monthly Solar Radiation",
+    title=f"Monthly Solar Radiation Profile for {selected_city}",
     xaxis_title="Month",
     yaxis_title="Solar Radiation (W/m²)",
     height=400
 )
 
 st.plotly_chart(fig_rad, use_container_width=True)
-
 # =========================================================
 # EFFICIENCY CURVE
 # =========================================================
