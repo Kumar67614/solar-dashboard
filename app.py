@@ -8,52 +8,81 @@ import plotly.express as px
 # PAGE CONFIG
 # ======================================================
 
-st.set_page_config(
-    page_title="Industrial Solar Thermal Analyzer",
-    layout="wide"
+# =========================================================
+# SIDEBAR INPUTS
+# =========================================================
+
+st.sidebar.title("Solar Process Inputs")
+
+# Industry Selection
+industry_type = st.sidebar.selectbox(
+    "Select Industry",
+    [
+        "Dairy Plant (Pasteurization/CIP)",
+        "Textile Dyeing Mills",
+        "Pharmaceutical Synthesis",
+        "Thermal Power Pre-Heating",
+        "Chemical Processing Tank"
+    ]
 )
 
-# ======================================================
-# CSS
-# ======================================================
+# Water Requirement
+water = st.sidebar.number_input(
+    "Water Requirement (LPD)",
+    min_value=100,
+    value=5000,
+    step=100
+)
 
-st.markdown("""
-<style>
+# Output Temperature
+tout = st.sidebar.number_input(
+    "Required Output Temperature (°C)",
+    min_value=30,
+    max_value=120,
+    value=80,
+    step=1
+)
 
-.main{
-    background:#f4f6f9;
-}
+# Inlet Temperature
+tin = st.sidebar.number_input(
+    "Cold Water Inlet Temperature (°C)",
+    min_value=1,
+    max_value=60,
+    value=25,
+    step=1
+)
 
-.title{
-    font-size:42px;
-    font-weight:bold;
-    color:#0f52ba;
-}
+# Ambient Temperature
+ambient_temp = st.sidebar.number_input(
+    "Ambient Temperature (°C)",
+    min_value=0,
+    max_value=60,
+    value=30
+)
 
-.card{
-    background:white;
-    padding:18px;
-    border-radius:12px;
-    text-align:center;
-    box-shadow:0px 2px 8px rgba(0,0,0,0.1);
-    border-top:5px solid #0f52ba;
-}
+# Wind Speed
+wind_speed = st.sidebar.slider(
+    "Wind Speed (m/s)",
+    0.0,
+    10.0,
+    2.0
+)
 
-.metric{
-    font-size:30px;
-    font-weight:bold;
-    color:#111;
-}
+# Fuel Selection
+aux_fuel_type = st.sidebar.selectbox(
+    "Backup Fuel",
+    [
+        "Diesel",
+        "Natural Gas",
+        "Electric Heater"
+    ]
+)
 
-.label{
-    font-size:14px;
-    color:gray;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ======================================================
+# Latitude
+latitude = st.sidebar.number_input(
+    "Plant Latitude",
+    value=18.5
+)# ======================================================
 # TITLE
 # ======================================================
 
