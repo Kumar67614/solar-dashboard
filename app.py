@@ -826,7 +826,66 @@ df = pd.DataFrame({
 })
 
 st.dataframe(df, use_container_width=True)
+# =========================================================
+# LATITUDE-WISE GEOGRAPHIC RADIATION ANALYSIS (INDIA FIELD)
+# =========================================================
 
+st.markdown('<div class="section-title">🗺️ Geographic Latitude-Wise Radiation Profile (India)</div>', unsafe_allow_html=True)
+st.markdown("This multi-city vector maps changing monthly solar intensity profiles across major industrial production corridors in India, sorted by localized latitude variations.")
+
+# Comprehensive Indian Geographical Latitude Array Registry
+geo_registry = {
+    "Srinagar (North - 34.1° N)": {"lat": 34.1, "base_rad": 540, "amplitude": 380, "peak_month": 5},
+    "New Delhi (North - 28.6° N)": {"lat": 28.6, "base_rad": 660, "amplitude": 280, "peak_month": 4},
+    "Ahmedabad (West - 23.0° N)": {"lat": 23.0, "base_rad": 740, "amplitude": 210, "peak_month": 4},
+    "Kolkata (East - 22.6° N)": {"lat": 22.6, "base_rad": 710, "amplitude": 190, "peak_month": 4},
+    "Mumbai (West Central - 19.1° N)": {"lat": 19.1, "base_rad": 760, "amplitude": 180, "peak_month": 3},
+    "Bengaluru (South - 12.9° N)": {"lat": 12.9, "base_rad": 810, "amplitude": 130, "peak_month": 2},
+    "Chennai (South - 13.1° N)": {"lat": 13.1, "base_rad": 790, "amplitude": 140, "peak_month": 3},
+    "Kochi (Deep South - 9.9° N)": {"lat": 9.9, "base_rad": 820, "amplitude": 110, "peak_month": 2}
+}
+
+months_axis = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+fig_geo = go.Figure()
+
+# Generate localized radiation profiles based on true solar geometry behaviors
+for location, parameters in geo_registry.items():
+    loc_radiation = []
+    for m_idx in range(1, 13):
+        # Sine-wave approximation modeling changing solar declination across varying latitudes
+        phase_offset = (m_idx - parameters["peak_month"]) * (np.pi / 6.0)
+        calculated_intensity = parameters["base_rad"] + parameters["amplitude"] * np.cos(phase_offset)
+        
+        # Introduce monsoon attenuation dips characteristic of June-August wet cycles in India
+        if m_idx in [6, 7, 8]:
+            # Monsoons suppress irradiance heavily along western maritime zones (Mumbai/Kochi) and less so in deep north
+            monsoon_loss_factor = 0.65 if parameters["lat"] < 20 else 0.82
+            calculated_intensity *= monsoon_loss_factor
+            
+    _rad = float(np.clip(calculated_intensity, 300, 1050))
+    loc_radiation.append(_rad)
+
+    fig_geo.add_trace(go.Scatter(
+        x=months_axis,
+        y=loc_radiation,
+        mode='lines+markers',
+        name=location,
+        line=dict(width=2.5),
+        marker=dict(size=5)
+    ))
+
+fig_geo.update_layout(
+    title="Annual Solar Clearness Irradiance Vector vs. Indian Production Hub Latitudes",
+    xaxis_title="Calendar Month Phase",
+    yaxis_title="Global Horizontal Irradiance (W/m²)",
+    height=500,
+    hovermode="x unified",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    margin=dict(l=40, r=40, t=80, b=40)
+)
+
+st.plotly_chart(fig_geo, use_container_width=True)
 # =========================================================
 # FOOTER
 # =========================================================
