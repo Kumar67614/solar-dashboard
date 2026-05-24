@@ -111,7 +111,7 @@ tout = st.sidebar.number_input(
 tin = st.sidebar.number_input(
     "Cold Water Inlet Temperature (°C)",
     min_value=1,
-    max_value=50,
+    max_value=70,
     value=25
 )
 
