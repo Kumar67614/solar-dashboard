@@ -1,66 +1,127 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import pandas as pd
+import numpy as np
 
-# ======================================================
+# =========================================================
 # PAGE CONFIG
-# ======================================================
-
-# =========================================================
-# SIDEBAR INPUTS
 # =========================================================
 
-st.sidebar.title("Solar Process Inputs")
+st.set_page_config(
+    page_title="SQS Solar SHIP Dashboard",
+    layout="wide"
+)
 
-# Industry Selection
+# =========================================================
+# CUSTOM CSS
+# =========================================================
+
+st.markdown("""
+<style>
+
+.main {
+    background-color: #f5f7fa;
+}
+
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.metric-box {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 5px solid #0f52ba;
+    box-shadow: 0px 2px 6px rgba(0,0,0,0.08);
+    margin-bottom: 10px;
+}
+
+.metric-title {
+    font-size: 14px;
+    color: gray;
+    font-weight: 600;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #111;
+}
+
+.section-title {
+    font-size: 26px;
+    font-weight: bold;
+    color: #0f52ba;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.small-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0px 2px 5px rgba(0,0,0,0.08);
+    margin-bottom: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# TITLE
+# =========================================================
+
+st.title("☀️ SQS Solar Water Heating Design Engine")
+
+st.markdown("---")
+
+# =========================================================
+# SIDEBAR
+# =========================================================
+
+st.sidebar.header("⚙️ System Inputs")
+
 industry_type = st.sidebar.selectbox(
     "Select Industry",
     [
-        "Dairy Plant (Pasteurization/CIP)",
-        "Textile Dyeing Mills",
-        "Pharmaceutical Synthesis",
-        "Thermal Power Pre-Heating",
-        "Chemical Processing Tank"
+        "Dairy Plant",
+        "Textile Industry",
+        "Pharmaceutical",
+        "Chemical Plant",
+        "Food Processing"
     ]
 )
 
-# Water Requirement
 water = st.sidebar.number_input(
-    "Water Requirement (LPD)",
+    "Daily Hot Water Requirement (LPD)",
     min_value=100,
     value=5000,
     step=100
 )
 
-# Output Temperature
 tout = st.sidebar.number_input(
     "Required Output Temperature (°C)",
     min_value=30,
     max_value=120,
-    value=80,
-    step=1
+    value=80
 )
 
-# Inlet Temperature
 tin = st.sidebar.number_input(
     "Cold Water Inlet Temperature (°C)",
     min_value=1,
-    max_value=60,
-    value=25,
-    step=1
+    max_value=50,
+    value=25
 )
 
-# Ambient Temperature
-ambient_temp = st.sidebar.number_input(
+ambient_temp = st.sidebar.slider(
     "Ambient Temperature (°C)",
-    min_value=0,
-    max_value=60,
-    value=30
+    10,
+    45,
+    30
 )
 
-# Wind Speed
 wind_speed = st.sidebar.slider(
     "Wind Speed (m/s)",
     0.0,
@@ -68,326 +129,7 @@ wind_speed = st.sidebar.slider(
     2.0
 )
 
-# Fuel Selection
-aux_fuel_type = st.sidebar.selectbox(
-    "Backup Fuel",
-    [
-        "Diesel",
-        "Natural Gas",
-        "Electric Heater"
-    ]
-)
-
-# Latitude
-latitude = st.sidebar.number_input(
-    "Plant Latitude",
-    value=18.5
-)# ======================================================
-# TITLE
-# ======================================================
-
-st.markdown(
-    '<div class="title">☀️ Industrial Solar Water Heating System</div>',
-    unsafe_allow_html=True
-)
-
-st.markdown("### Real Time Solar Thermal Proposal Dashboard")
-
-# ======================================================
-# SIDEBAR
-# ======================================================
-
-st.sidebar.title("⚙️ Input Parameters")
-
-industry = st.sidebar.selectbox(
-    "Select Industry",
-    [
-        "Dairy Plant",
-        "Textile Industry",
-        "Pharmaceutical Plant",
-        "Chemical Industry",
-        "Hotel"
-    ]
-)
-
-flow = st.sidebar.slider(
-    "Flow Rate (LPH)",
-    100,
-    400,
-    200,
-    50
-)
-
-tin = st.sidebar.number_input(
-    "Cold Water Temperature (°C)",
-    value=25
-)
-
-tout = st.sidebar.number_input(
-    "Hot Water Temperature (°C)",
-    value=80
-)
-
-ambient = st.sidebar.number_input(
-    "Ambient Temperature (°C)",
-    value=30
-)
-
-solar_radiation = st.sidebar.slider(
-    "Solar Radiation (W/m²)",
-    400,
-    1200,
-    800,
-    50
-)
-
-fuel_cost = st.sidebar.number_input(
-    "Fuel Cost ₹",
-    value=85
-)
-
-# ======================================================
-# CALCULATIONS
-# ======================================================
-
-cp = 4.186
-
-dt = tout - tin
-
-energy = (flow * cp * dt) / 3600
-
-efficiency = (
-    0.75 - ((tout - ambient)/1000)
-)
-
-efficiency = max(
-    0.35,
-    min(efficiency,0.75)
-)
-
-collector_area = energy / (
-    (solar_radiation/1000) * efficiency
-)
-
-modules = round(
-    collector_area / 7.2
-)
-
-tank = flow * 1.2
-
-annual_savings = energy * 300 * fuel_cost
-
-payback = (
-    collector_area * 14000
-) / annual_savings
-
-co2 = energy * 300 * 0.82 / 1000
-
-# ======================================================
-# PUMP
-# ======================================================
-
-if flow <= 150:
-    pump = "1 HP"
-    pipe = "DN25"
-
-elif flow <= 250:
-    pump = "2 HP"
-    pipe = "DN32"
-
-else:
-    pump = "3 HP"
-    pipe = "DN40"
-
-# ======================================================
-# KPI
-# ======================================================
-
-st.markdown("---")
-
-c1,c2,c3,c4 = st.columns(4)
-
-with c1:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">THERMAL ENERGY</div>
-    <div class="metric">{energy:.1f}</div>
-    kWh/day
-    </div>
-    """, unsafe_allow_html=True)
-
-with c2:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">COLLECTOR AREA</div>
-    <div class="metric">{collector_area:.1f}</div>
-    m²
-    </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">SOLAR MODULES</div>
-    <div class="metric">{modules}</div>
-    Units
-    </div>
-    """, unsafe_allow_html=True)
-
-with c4:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">STORAGE TANK</div>
-    <div class="metric">{tank:.0f}</div>
-    Liters
-    </div>
-    """, unsafe_allow_html=True)
-
-# ======================================================
-# SECOND ROW
-# ======================================================
-
-c5,c6,c7,c8 = st.columns(4)
-
-with c5:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">EFFICIENCY</div>
-    <div class="metric">{efficiency*100:.1f}%</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c6:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">PUMP</div>
-    <div class="metric">{pump}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c7:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">PAYBACK</div>
-    <div class="metric">{payback:.1f}</div>
-    Years
-    </div>
-    """, unsafe_allow_html=True)
-
-with c8:
-    st.markdown(f"""
-    <div class="card">
-    <div class="label">CO₂ SAVED</div>
-    <div class="metric">{co2:.1f}</div>
-    Tons/year
-    </div>
-    """, unsafe_allow_html=True)
-
-# ======================================================
-# GAUGE
-# ======================================================
-
-st.markdown("---")
-
-fig = go.Figure(go.Indicator(
-    mode="gauge+number",
-    value=efficiency*100,
-    title={'text':"Collector Efficiency"},
-    gauge={
-        'axis':{'range':[0,100]},
-        'bar':{'color':"green"}
-    }
-))
-
-st.plotly_chart(fig,use_container_width=True)
-
-# ======================================================
-# SOLAR RADIATION GRAPH
-# ======================================================
-
-st.markdown("---")
-
-months = [
-    "Jan","Feb","Mar","Apr",
-    "May","Jun","Jul","Aug",
-    "Sep","Oct","Nov","Dec"
-]
-
-radiation = [
-    650,720,850,980,
-    1100,950,780,760,
-    820,900,700,620
-]
-
-df = pd.DataFrame({
-    "Month":months,
-    "Radiation":radiation
-})
-
-fig2 = px.line(
-    df,
-    x="Month",
-    y="Radiation",
-    markers=True,
-    title="Monthly Solar Radiation"
-)
-
-fig2.update_layout(
-    yaxis_title="Solar Radiation (W/m²)",
-    xaxis_title="Month"
-)
-
-st.plotly_chart(fig2,use_container_width=True)
-# =========================================================
-# BASIC CALCULATIONS
-# =========================================================
-
-cp = 4.186
-module_area = 7.2
-collector_efficiency = 0.65
-
-# Temperature Difference
-dt = tout - tin
-
-# Thermal Energy
-net_energy_demand = (water * cp * dt) / 3600
-
-# Collector Output
-module_energy = 22
-
-# Number of Modules
-modules = round(net_energy_demand / module_energy)
-
-if modules < 1:
-    modules = 1
-
-# Total Collector Area
-total_collector_area = modules * module_area
-
-# Tank Capacity
-storage_tank_capacity = water * 1.2
-
-# Flow Rate
-flow_lpm = ((modules / 2) * 250) / 60
-
-# Pump Selection
-if flow_lpm < 25:
-    pump_hp = "1 HP"
-elif flow_lpm < 50:
-    pump_hp = "2 HP"
-else:
-    pump_hp = "3 HP"
-
-# Pipe Size
-if flow_lpm < 25:
-    pipe_size_dn = "DN25"
-elif flow_lpm < 50:
-    pipe_size_dn = "DN40"
-else:
-    pipe_size_dn = "DN50"
-
-# Fuel Type
-aux_fuel_type = st.sidebar.selectbox(
+fuel_type = st.sidebar.selectbox(
     "Backup Fuel Type",
     [
         "Diesel",
@@ -395,193 +137,404 @@ aux_fuel_type = st.sidebar.selectbox(
         "Electric Heater"
     ]
 )
-# ======================================================
-# INDUSTRIAL P&ID
-# ======================================================
-# =========================================================
-# INDUSTRY SELECTION
-# =========================================================
 
-industry_type = st.sidebar.selectbox(
-    "Select Industry",
-    [
-        "Dairy Plant (Pasteurization/CIP)",
-        "Textile Dyeing Mills",
-        "Pharmaceutical Synthesis",
-        "Thermal Power Pre-Heating",
-        "Chemical Processing Tank"
-    ]
+fuel_cost = st.sidebar.number_input(
+    "Fuel Cost (₹)",
+    value=85
 )
 
 # =========================================================
-# INDUSTRY PROCESS MAPPING
+# CONSTANTS
 # =========================================================
 
-industry_process = {
-    "Dairy Plant (Pasteurization/CIP)": "Pasteurizer",
-    "Textile Dyeing Mills": "Dyeing Tank",
-    "Pharmaceutical Synthesis": "Reactor",
-    "Thermal Power Pre-Heating": "Feed Water Heater",
-    "Chemical Processing Tank": "Chemical Process Tank"
+cp = 4.186
+module_area = 7.2
+module_output = 22
+safety_factor = 1.15
+
+# =========================================================
+# CALCULATIONS
+# =========================================================
+
+dt = tout - tin
+
+energy = (water * cp * dt) / 3600
+
+gross_energy = energy * safety_factor
+
+modules = round(gross_energy / module_output)
+
+if modules < 1:
+    modules = 1
+
+area = modules * module_area
+
+storage_tank_capacity = water * 1.2
+
+flow_lpm = ((modules / 2) * 250) / 60
+
+flow_kghr = flow_lpm * 60
+
+efficiency = (energy / (modules * module_output)) * 100
+
+efficiency = max(35, min(efficiency, 85))
+
+annual_energy = gross_energy * 365
+
+annual_savings = annual_energy * fuel_cost * 0.25
+
+co2 = annual_energy * 0.82 / 1000
+
+project_cost = area * 14000
+
+payback = project_cost / annual_savings
+
+# =========================================================
+# PUMP
+# =========================================================
+
+if flow_lpm < 25:
+    pump = "1 HP"
+    pipe = "DN25"
+
+elif flow_lpm < 50:
+    pump = "2 HP"
+    pipe = "DN40"
+
+else:
+    pump = "5 HP"
+    pipe = "DN50"
+
+# =========================================================
+# KPI SECTION
+# =========================================================
+
+st.markdown('<div class="section-title">📊 Engineering Summary</div>', unsafe_allow_html=True)
+
+c1, c2, c3, c4 = st.columns(4)
+
+with c1:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">THERMAL LOAD</div>
+        <div class="metric-value">{energy:.1f} kWh/day</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c2:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">SOLAR MODULES</div>
+        <div class="metric-value">{modules}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c3:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">COLLECTOR AREA</div>
+        <div class="metric-value">{area:.1f} m²</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c4:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">FLOW RATE</div>
+        <div class="metric-value">{flow_lpm:.1f} LPM</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# =========================================================
+# SECOND ROW
+# =========================================================
+
+c5, c6, c7, c8 = st.columns(4)
+
+with c5:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">STORAGE TANK</div>
+        <div class="metric-value">{storage_tank_capacity:.0f} L</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c6:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">SYSTEM EFFICIENCY</div>
+        <div class="metric-value">{efficiency:.1f}%</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c7:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">PUMP SELECTION</div>
+        <div class="metric-value">{pump}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c8:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">PIPE SIZE</div>
+        <div class="metric-value">{pipe}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# =========================================================
+# FINANCIAL SECTION
+# =========================================================
+
+st.markdown('<div class="section-title">💰 Financial Analysis</div>', unsafe_allow_html=True)
+
+f1, f2, f3, f4 = st.columns(4)
+
+with f1:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">PROJECT COST</div>
+        <div class="metric-value">₹ {project_cost:,.0f}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with f2:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">ANNUAL SAVINGS</div>
+        <div class="metric-value">₹ {annual_savings:,.0f}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with f3:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">PAYBACK</div>
+        <div class="metric-value">{payback:.1f} Years</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with f4:
+    st.markdown(f"""
+    <div class="metric-box">
+        <div class="metric-title">CO₂ REDUCTION</div>
+        <div class="metric-value">{co2:.1f} Tons/Yr</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# =========================================================
+# GAUGE CHART
+# =========================================================
+
+st.markdown('<div class="section-title">🎯 Collector Efficiency Gauge</div>', unsafe_allow_html=True)
+
+fig_gauge = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=efficiency,
+    title={'text': "Collector Efficiency %"},
+    gauge={
+        'axis': {'range': [0, 100]},
+        'bar': {'color': "#0f52ba"},
+        'steps': [
+            {'range': [0, 40], 'color': "#ffcccc"},
+            {'range': [40, 70], 'color': "#fff2cc"},
+            {'range': [70, 100], 'color': "#d9ead3"}
+        ]
+    }
+))
+
+fig_gauge.update_layout(height=350)
+
+st.plotly_chart(fig_gauge, use_container_width=True)
+
+# =========================================================
+# SOLAR RADIATION GRAPH
+# =========================================================
+
+st.markdown('<div class="section-title">☀️ Solar Radiation Analysis</div>', unsafe_allow_html=True)
+
+months = [
+    "Jan", "Feb", "Mar", "Apr",
+    "May", "Jun", "Jul", "Aug",
+    "Sep", "Oct", "Nov", "Dec"
+]
+
+radiation = [
+    650, 720, 850, 920,
+    980, 860, 720, 690,
+    810, 850, 760, 680
+]
+
+fig_rad = go.Figure()
+
+fig_rad.add_trace(go.Bar(
+    x=months,
+    y=radiation,
+    marker_color="#f4a261"
+))
+
+fig_rad.update_layout(
+    title="Monthly Solar Radiation",
+    xaxis_title="Month",
+    yaxis_title="Solar Radiation (W/m²)",
+    height=400
+)
+
+st.plotly_chart(fig_rad, use_container_width=True)
+
+# =========================================================
+# EFFICIENCY CURVE
+# =========================================================
+
+st.markdown('<div class="section-title">📈 Efficiency Curve</div>', unsafe_allow_html=True)
+
+x = np.linspace(0, 100, 50)
+
+y = 82 - (0.35 * x)
+
+fig_eff = go.Figure()
+
+fig_eff.add_trace(go.Scatter(
+    x=x,
+    y=y,
+    mode='lines',
+    line=dict(color="#0f52ba", width=4),
+    name="Efficiency"
+))
+
+fig_eff.update_layout(
+    title="Collector Efficiency Trend",
+    xaxis_title="Operating Parameter",
+    yaxis_title="Efficiency %",
+    height=400
+)
+
+st.plotly_chart(fig_eff, use_container_width=True)
+
+# =========================================================
+# INDUSTRIAL P&ID
+# =========================================================
+
+st.markdown('<div class="section-title">🏭 Industrial P&ID Diagram</div>', unsafe_allow_html=True)
+
+process_map = {
+    "Dairy Plant": "Pasteurizer",
+    "Textile Industry": "Dyeing Machine",
+    "Pharmaceutical": "Reactor",
+    "Chemical Plant": "Chemical Tank",
+    "Food Processing": "Food Heater"
 }
 
-process_name = industry_process[industry_type]
-# =========================================================
-# INDUSTRIAL P&ID DIAGRAM
-# =========================================================
+process_name = process_map[industry_type]
 
-st.markdown("## 🏭 Industrial Process P&ID")
-
-industry_process = {
-    "Dairy Plant (Pasteurization/CIP)": "Pasteurizer",
-    "Textile Dyeing Mills": "Dyeing Tank",
-    "Pharmaceutical Synthesis": "Reactor",
-    "Thermal Power Pre-Heating": "Feed Water",
-    "Chemical Processing Tank": "Chemical Tank"
-}
-
-process_name = industry_process[industry_type]
-
-pid_code = f"""
+pid = f"""
 digraph G {{
 
-    graph [pad="0.5", nodesep="0.8", ranksep="1"]
-    rankdir=LR;
-    splines=ortho;
-    bgcolor="white";
+rankdir=LR;
+splines=ortho;
 
-    node [
-        shape=box,
-        style="filled",
-        color="black",
-        fillcolor="#d9edf7",
-        fontname="Arial",
-        fontsize=12
-    ];
+node [
+shape=box
+style=filled
+fillcolor="#d9edf7"
+fontname=Arial
+];
 
-    edge [
-        color="black",
-        penwidth=2,
-        arrowsize=1
-    ];
+Tank [
+label="Storage Tank\\n{storage_tank_capacity:.0f} L"
+shape=cylinder
+fillcolor="#ffe599"
+];
 
-    Tank [
-        label="STORAGE TANK\\nCapacity = {storage_tank_capacity:.0f} L"
-        shape=cylinder
-        fillcolor="#ffe599"
-    ];
+Pump [
+label="Pump\\n{pump}"
+shape=circle
+fillcolor="#b6d7a8"
+];
 
-    Pump [
-        label="PUMP\\n{pump_hp}"
-        shape=circle
-        fillcolor="#b6d7a8"
-    ];
+Collector [
+label="Solar Collector\\n{modules} Modules"
+fillcolor="#f4cccc"
+];
 
-    Collector [
-        label="SOLAR COLLECTOR FIELD\\n{modules} Modules"
-        shape=box
-        fillcolor="#f4cccc"
-    ];
+Boiler [
+label="Boiler\\n{fuel_type}"
+fillcolor="#d9d2e9"
+];
 
-    Boiler [
-        label="AUX BOILER\\n{aux_fuel_type}"
-        shape=box
-        fillcolor="#d9d2e9"
-    ];
+HX [
+label="Heat Exchanger"
+fillcolor="#cfe2f3"
+];
 
-    HX [
-        label="HEAT EXCHANGER"
-        shape=box
-        fillcolor="#cfe2f3"
-    ];
+Process [
+label="{process_name}\\n{tout} C"
+fillcolor="#ead1dc"
+];
 
-    Process [
-        label="{process_name}\\nProcess Temp = {tout} C"
-        shape=box
-        fillcolor="#ead1dc"
-    ];
+Tank -> Pump;
+Pump -> Collector;
+Collector -> HX;
+HX -> Process;
+Process -> Tank;
 
-    Valve1 [
-        label="CV"
-        shape=diamond
-        fillcolor="#ffffff"
-    ];
-
-    Valve2 [
-        label="CV"
-        shape=diamond
-        fillcolor="#ffffff"
-    ];
-
-    FT [
-        label="FT"
-        shape=circle
-        fillcolor="#fff2cc"
-    ];
-
-    TT [
-        label="TT"
-        shape=circle
-        fillcolor="#fff2cc"
-    ];
-
-    PI [
-        label="PI"
-        shape=circle
-        fillcolor="#fff2cc"
-    ];
-
-    Tank -> Pump;
-    Pump -> FT;
-    FT -> Collector;
-    Collector -> TT;
-    TT -> HX;
-    HX -> Valve1;
-    Valve1 -> Process;
-
-    Process -> Valve2;
-    Valve2 -> Tank;
-
-    HX -> Boiler;
-    Boiler -> HX;
-
-    Collector -> PI;
+Boiler -> HX;
+HX -> Boiler;
 
 }}
 """
 
-st.graphviz_chart(pid_code)
+st.graphviz_chart(pid)
 
-# ======================================================
-# SUMMARY
-# ======================================================
+# =========================================================
+# DATA TABLE
+# =========================================================
 
-st.markdown("---")
+st.markdown('<div class="section-title">📋 Proposal Summary</div>', unsafe_allow_html=True)
 
-summary = pd.DataFrame({
-
-    "Parameter":[
+df = pd.DataFrame({
+    "Parameter": [
         "Industry",
-        "Flow Rate",
+        "Water Requirement",
+        "Outlet Temperature",
+        "Inlet Temperature",
+        "Thermal Load",
+        "Solar Modules",
         "Collector Area",
-        "Modules",
+        "Tank Capacity",
+        "Flow Rate",
         "Pump",
-        "Pipe",
-        "Efficiency"
+        "Pipe Size",
+        "Project Cost",
+        "Annual Savings",
+        "Payback"
     ],
 
-    "Value":[
-        industry,
-        f"{flow} LPH",
-        f"{collector_area:.1f} m²",
+    "Value": [
+        industry_type,
+        f"{water} LPD",
+        f"{tout} °C",
+        f"{tin} °C",
+        f"{energy:.1f} kWh/day",
         modules,
+        f"{area:.1f} m²",
+        f"{storage_tank_capacity:.0f} L",
+        f"{flow_lpm:.1f} LPM",
         pump,
         pipe,
-        f"{efficiency*100:.1f}%"
+        f"₹ {project_cost:,.0f}",
+        f"₹ {annual_savings:,.0f}",
+        f"{payback:.1f} Years"
     ]
 })
 
-st.dataframe(
-    summary,
-    use_container_width=True
-)
+st.dataframe(df, use_container_width=True)
+
+# =========================================================
+# FOOTER
+# =========================================================
+
+st.markdown("---")
+
+st.success("✅ Industrial Solar Water Heating Proposal Generated Successfully")
