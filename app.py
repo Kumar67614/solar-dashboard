@@ -73,7 +73,7 @@ st.markdown("""
 # TITLE
 # =========================================================
 
-st.title("☀️ SQS Solar Water Heating Design Engine")
+st.title("☀️ SQS Solar Water Heating Design Proposal")
 
 st.markdown("---")
 
