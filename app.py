@@ -309,7 +309,63 @@ fig2.update_layout(
 )
 
 st.plotly_chart(fig2,use_container_width=True)
+# =========================================================
+# BASIC CALCULATIONS
+# =========================================================
 
+cp = 4.186
+module_area = 7.2
+collector_efficiency = 0.65
+
+# Temperature Difference
+dt = tout - tin
+
+# Thermal Energy
+net_energy_demand = (water * cp * dt) / 3600
+
+# Collector Output
+module_energy = 22
+
+# Number of Modules
+modules = round(net_energy_demand / module_energy)
+
+if modules < 1:
+    modules = 1
+
+# Total Collector Area
+total_collector_area = modules * module_area
+
+# Tank Capacity
+storage_tank_capacity = water * 1.2
+
+# Flow Rate
+flow_lpm = ((modules / 2) * 250) / 60
+
+# Pump Selection
+if flow_lpm < 25:
+    pump_hp = "1 HP"
+elif flow_lpm < 50:
+    pump_hp = "2 HP"
+else:
+    pump_hp = "3 HP"
+
+# Pipe Size
+if flow_lpm < 25:
+    pipe_size_dn = "DN25"
+elif flow_lpm < 50:
+    pipe_size_dn = "DN40"
+else:
+    pipe_size_dn = "DN50"
+
+# Fuel Type
+aux_fuel_type = st.sidebar.selectbox(
+    "Backup Fuel Type",
+    [
+        "Diesel",
+        "Natural Gas",
+        "Electric Heater"
+    ]
+)
 # ======================================================
 # INDUSTRIAL P&ID
 # ======================================================
