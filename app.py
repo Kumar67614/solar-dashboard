@@ -313,7 +313,34 @@ st.plotly_chart(fig2,use_container_width=True)
 # ======================================================
 # INDUSTRIAL P&ID
 # ======================================================
+# =========================================================
+# INDUSTRY SELECTION
+# =========================================================
 
+industry_type = st.sidebar.selectbox(
+    "Select Industry",
+    [
+        "Dairy Plant (Pasteurization/CIP)",
+        "Textile Dyeing Mills",
+        "Pharmaceutical Synthesis",
+        "Thermal Power Pre-Heating",
+        "Chemical Processing Tank"
+    ]
+)
+
+# =========================================================
+# INDUSTRY PROCESS MAPPING
+# =========================================================
+
+industry_process = {
+    "Dairy Plant (Pasteurization/CIP)": "Pasteurizer",
+    "Textile Dyeing Mills": "Dyeing Tank",
+    "Pharmaceutical Synthesis": "Reactor",
+    "Thermal Power Pre-Heating": "Feed Water Heater",
+    "Chemical Processing Tank": "Chemical Process Tank"
+}
+
+process_name = industry_process[industry_type]
 # =========================================================
 # INDUSTRIAL P&ID DIAGRAM
 # =========================================================
