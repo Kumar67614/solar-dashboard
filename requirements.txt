@@ -1,5 +1,6 @@
 streamlit
 plotly
-numpy
 pandas
-graphviz
+numpy
+matplotlib
+reportlab
