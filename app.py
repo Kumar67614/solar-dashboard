@@ -1,872 +1,1005 @@
+# ============================================================
+# UNIVERSAL INDUSTRIAL SOLAR THERMAL PROPOSAL ENGINE
+# FULLY GENERALIZED STREAMLIT APPLICATION
+# READY FOR GITHUB UPLOAD AS app.py
+# ============================================================
+
 import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import math
+from dataclasses import dataclass
 
-# =========================================================
+# ============================================================
 # PAGE CONFIG
-# =========================================================
+# ============================================================
 
-st.set_page_config(
-    page_title="SQS Solar SHIP Dashboard",
-    layout="wide"
-)
+st.set_page_config(page_title="Universal Solar Thermal Proposal Engine", layout="wide")
 
-# =========================================================
-# CUSTOM CSS
-# =========================================================
+# ============================================================
+# DATA CLASSES
+# ============================================================
 
-st.markdown("""
-<style>
+@dataclass
+class CollectorParams:
+    name: str
+    collector_type: str
+    aperture_area: float
+    gross_area: float
+    width: float
+    height: float
+    eta0: float
+    a1: float
+    a2: float
+    rated_flow_per_collector: float
+    tilt_angle: float
 
-.main {
-    background-color: #f5f7fa;
-}
 
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-}
+@dataclass
+class ProcessRequirements:
+    daily_volume_lpd: float
+    inlet_temp_c: float
+    outlet_temp_c: float
+    ambient_temp_c: float
+    operating_hours: float
 
-.metric-box {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 5px solid #0f52ba;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.08);
-    margin-bottom: 10px;
-}
 
-.metric-title {
-    font-size: 14px;
-    color: gray;
-    font-weight: 600;
-}
+# ============================================================
+# THERMAL ENGINE
+# ============================================================
 
-.metric-value {
-    font-size: 28px;
-    font-weight: bold;
-    color: #111;
-}
+CP_WATER = 4186
 
-.section-title {
-    font-size: 26px;
-    font-weight: bold;
-    color: #0f52ba;
-    margin-top: 20px;
-    margin-bottom: 10px;
-}
 
-.small-card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0px 2px 5px rgba(0,0,0,0.08);
-    margin-bottom: 10px;
-}
+def solve_hwb(
+    collector,
+    inlet_temp,
+    ambient_temp,
+    irradiance,
+    flow_lph,
+):
 
-</style>
-""", unsafe_allow_html=True)
+    if irradiance <= 0:
+        return {
+            "efficiency": 0,
+            "delta_t": 0,
+            "outlet_temp": inlet_temp,
+            "useful_heat": 0,
+        }
 
-# =========================================================
-# TITLE
-# =========================================================
+    mass_flow = (flow_lph / 3600) * 1000 / 1000
 
-st.title("☀️ SQS Solar Water Heating Design Proposal")
+    tm = inlet_temp + 5
 
-st.markdown("---")
+    for _ in range(20):
 
-# =========================================================
-# EXPERIMENTAL REGISTRY DATA SETUP
-# =========================================================
+        x = (tm - ambient_temp) / irradiance
 
-EXPERIMENTAL_REGISTRY = {
-    100: {
-        "nominal_string": "100 LPH Regime",
-        "mean_flow_rate": 103.5,
-        "intercept_eta0": 0.74,
-        "loss_coeff_a1": 1.45,
-        "loss_coeff_a2": 0.005,
-        "min_flow_observed": 90.0,
-        "max_flow_observed": 115.0,
-        "associated_files": ["60_06-02-2026_SQS.csv", "90_09-02-2026_SQS_.csv"]
-    },
-    200: {
-        "nominal_string": "200 LPH Regime",
-        "mean_flow_rate": 195.2,
-        "intercept_eta0": 0.79,
-        "loss_coeff_a1": 1.22,
-        "loss_coeff_a2": 0.004,
-        "min_flow_observed": 180.0,
-        "max_flow_observed": 210.0,
-        "associated_files": ["80_30-01-2026_SQS.csv", "80_24-11-2025_SQS.csv", "100_21-11-2025_SQS_.csv", "70_17-02-2026_SQS.csv", "60_02-02-2026_SQS.csv"]
-    },
-    300: {
-        "nominal_string": "300 LPH Regime",
-        "mean_flow_rate": 307.8,
-        "intercept_eta0": 0.83,
-        "loss_coeff_a1": 0.98,
-        "loss_coeff_a2": 0.003,
-        "min_flow_observed": 295.0,
-        "max_flow_observed": 318.0,
-        "associated_files": ["70_10-02-2026_SQS.csv", "60_11-02-2026_SQS.csv", "80__12-02-2026_SQS.csv", "90_13-02-2026_SQS.csv", "100_18.11.25_SQS.csv"]
-    },
-    400: {
-        "nominal_string": "400 LPH Regime",
-        "mean_flow_rate": 411.5,
-        "intercept_eta0": 0.85,
-        "loss_coeff_a1": 0.82,
-        "loss_coeff_a2": 0.002,
-        "min_flow_observed": 395.0,
-        "max_flow_observed": 425.0,
-        "associated_files": ["24-01-2026_SQS_80.csv", "27-01-2026_SQS_70.csv", "28-01-2026_SQS_Jan28_60.csv", "29-01-2026_SQS_100.csv"]
-    }
-}
+        eta = (
+            collector.eta0
+            - collector.a1 * x
+            - collector.a2 * (x ** 2) * irradiance
+        )
 
-def solve_collector_thermodynamics(flow_rate_lph, t_in, it, t_amb, ap_area, config_dict):
-    cp_fluid = 4186.0  # J/kg.K
-    mass_flow_sec = (flow_rate_lph) / 3600.0
-    
-    if it <= 0:
-        return {"efficiency_pct": 0.0, "delta_t": 0.0, "temp_out": t_in, "energy_output_w": 0.0}
-        
-    # Baseline approximation loop using standard collector heat balance formulations
-    t_mean_guess = t_in + 5.0
-    for _ in range(5):
-        tm_param = (t_mean_guess - t_amb) / it
-        eta = config_dict["intercept_eta0"] - config_dict["loss_coeff_a1"] * tm_param - config_dict["loss_coeff_a2"] * (tm_param ** 2) * it
-        eta = max(0.0, min(eta, 0.90))
-        
-        q_gain = it * ap_area * eta
-        if mass_flow_sec > 0:
-            dt_calc = q_gain / (mass_flow_sec * cp_fluid)
+        eta = max(0, min(eta, collector.eta0))
+
+        useful_heat = eta * irradiance * collector.aperture_area
+
+        if mass_flow > 0:
+            delta_t = useful_heat / (mass_flow * CP_WATER)
         else:
-            dt_calc = 0.0
-        t_mean_guess = t_in + (dt_calc / 2.0)
-        
+            delta_t = 0
+
+        tm_new = inlet_temp + delta_t / 2
+
+        if abs(tm_new - tm) < 0.01:
+            tm = tm_new
+            break
+
+        tm = tm_new
+
     return {
-        "efficiency_pct": eta * 100.0,
-        "delta_t": dt_calc,
-        "temp_out": t_in + dt_calc,
-        "energy_output_w": q_gain
+        "efficiency": eta * 100,
+        "delta_t": delta_t,
+        "outlet_temp": inlet_temp + delta_t,
+        "useful_heat": useful_heat,
     }
 
-# =========================================================
-# =========================================================
-# =========================================================
-# SIDEBAR WITH GEOGRAPHIC CORRIDOR TABS
-# =========================================================
 
-st.sidebar.header("⚙️ System Inputs")
+# ============================================================
+# LOAD CALCULATION
+# ============================================================
 
-tab_side_process, tab_side_geo = st.sidebar.tabs(["🏭 Process", "🗺️ Location"])
 
-with tab_side_process:
-    industry_type = st.selectbox(
-        "Select Industry",
-        [
-            "Dairy Plant",
-            "Textile Industry",
-            "Pharmaceutical",
-            "Chemical Plant",
-            "Food Processing"
-        ]
+def calculate_load(process):
+
+    dt = process.outlet_temp_c - process.inlet_temp_c
+
+    daily_energy_kwh = (
+        process.daily_volume_lpd * CP_WATER * dt
+    ) / 3600000
+
+    return daily_energy_kwh
+
+
+# ============================================================
+# COLLECTOR FIELD SIZING
+# ============================================================
+
+
+def size_collector_field(process, collector, irradiance, peak_sun_hours):
+
+    thermal_load = calculate_load(process)
+
+    single_result = solve_hwb(
+        collector,
+        process.inlet_temp_c,
+        process.ambient_temp_c,
+        irradiance,
+        collector.rated_flow_per_collector,
     )
 
-    water = st.number_input(
-        "Daily Hot Water Requirement (LPD)",
-        min_value=100,
-        value=5000,
-        step=100
+    single_daily_output = (
+        single_result["useful_heat"] / 1000
+    ) * peak_sun_hours
+
+    if single_daily_output <= 0:
+        single_daily_output = 0.1
+
+    collectors = math.ceil(thermal_load / single_daily_output)
+
+    total_aperture_area = collectors * collector.aperture_area
+    total_gross_area = collectors * collector.gross_area
+
+    return {
+        "thermal_load": thermal_load,
+        "collectors": collectors,
+        "total_aperture_area": total_aperture_area,
+        "total_gross_area": total_gross_area,
+        "single_output": single_daily_output,
+    }
+
+
+# ============================================================
+# LAYOUT ENGINE
+# ============================================================
+
+
+def calculate_spacing(height, tilt, latitude):
+
+    winter_altitude = 90 - abs(latitude + 23.45)
+
+    winter_altitude = max(10, winter_altitude)
+
+    shadow = (
+        height * math.cos(math.radians(tilt))
+        + (
+            height * math.sin(math.radians(tilt))
+        )
+        / math.tan(math.radians(winter_altitude))
     )
 
-    tout = st.number_input(
-        "Required Output Temperature (°C)",
-        min_value=30,
-        max_value=120,
-        value=80
-    )
+    pitch = shadow + 0.8
 
-    tin = st.number_input(
-        "Cold Water Inlet Temperature (°C)",
-        min_value=1,
-        max_value=70,
-        value=25
-    )
+    return {
+        "winter_altitude": winter_altitude,
+        "shadow": shadow,
+        "pitch": pitch,
+    }
 
-    ambient_temp = st.slider(
-        "Ambient Temperature (°C)",
-        10,
-        45,
-        value=30
-    )
 
-    wind_speed = st.slider(
-        "Wind Speed (m/s)",
-        0.0,
-        10.0,
-        value=2.0
-    )
+# ============================================================
+# FINANCIAL ENGINE
+# ============================================================
 
-    fuel_type = st.selectbox(
-        "Backup Fuel Type",
-        [
-            "Diesel",
-            "Natural Gas",
-            "Electric Heater"
-        ]
-    )
 
-    fuel_cost = st.number_input(
-        "Fuel Cost (₹)",
-        value=85
-    )
+def financial_analysis(total_area, thermal_load, fuel_cost):
 
-# Comprehensive Indian Geographical Latitude Array Registry
-geo_registry = {
-    "Srinagar (North - 34.1° N)": {"lat": 34.1, "base_rad": 540, "amplitude": 380, "peak_month": 5},
-    "New Delhi (North - 28.6° N)": {"lat": 28.6, "base_rad": 660, "amplitude": 280, "peak_month": 4},
-    "Ahmedabad (West - 23.0° N)": {"lat": 23.0, "base_rad": 740, "amplitude": 210, "peak_month": 4},
-    "Kolkata (East - 22.6° N)": {"lat": 22.6, "base_rad": 710, "amplitude": 190, "peak_month": 4},
-    "Mumbai (West Central - 19.1° N)": {"lat": 19.1, "base_rad": 760, "amplitude": 180, "peak_month": 3},
-    "Bengaluru (South - 12.9° N)": {"lat": 12.9, "base_rad": 810, "amplitude": 130, "peak_month": 2},
-    "Chennai (South - 13.1° N)": {"lat": 13.1, "base_rad": 790, "amplitude": 140, "peak_month": 3},
-    "Kochi (Deep South - 9.9° N)": {"lat": 9.9, "base_rad": 820, "amplitude": 110, "peak_month": 2}
-}
+    project_cost = total_area * 12000
 
-with tab_side_geo:
-    st.markdown("### Latitude Solar Parameters")
-    selected_city = st.selectbox(
-        "Select Installation Site Corridors",
-        options=list(geo_registry.keys())
-    )
-    
+    annual_energy = thermal_load * 300
+
+    annual_savings = annual_energy * fuel_cost * 0.25
+
+    payback = project_cost / annual_savings if annual_savings > 0 else 0
+
+    co2 = annual_energy * 0.82 / 1000
+
+    return {
+        "project_cost": project_cost,
+        "annual_savings": annual_savings,
+        "payback": payback,
+        "co2": co2,
+    }
+
+
+# ============================================================
+# SIDEBAR INPUTS
+# ============================================================
+
+st.sidebar.title("Solar System Inputs")
+
+industry = st.sidebar.selectbox(
+    "Industry",
+    [
+        "Dairy",
+        "Textile",
+        "Pharmaceutical",
+        "Food",
+        "Chemical",
+    ],
+)
+
+water = st.sidebar.number_input(
+    "Daily Hot Water Requirement (LPD)",
+    value=5000,
+)
+
+inlet_temp = st.sidebar.number_input(
+    "Inlet Temperature °C",
+    value=25,
+)
+
+outlet_temp = st.sidebar.number_input(
+    "Outlet Temperature °C",
+    value=80,
+)
+
+ambient_temp = st.sidebar.number_input(
+    "Ambient Temperature °C",
+    value=30,
+)
+
+irradiance = st.sidebar.slider(
+    "Solar Irradiance W/m²",
+    200,
+    1200,
+    800,
+)
+
+peak_sun_hours = st.sidebar.slider(
+    "Peak Sun Hours",
+    1.0,
+    10.0,
+    5.5,
+)
+
+fuel_cost = st.sidebar.number_input(
+    "Fuel Cost ₹",
+    value=90,
+)
+
+latitude = st.sidebar.number_input(
+    "Site Latitude",
+    value=19.1,
+)
+
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔬 Experimental Calibration Regimes")
+st.sidebar.subheader("Collector Parameters")
 
-selected_group = st.sidebar.selectbox(
-    "Select Flow Stream Calibration Target",
-    options=[100, 200, 300, 400],
-    format_func=lambda val: f"{val} LPH Experimental Baseline"
+collector = CollectorParams(
+    name=st.sidebar.text_input("Collector Name", "Custom FPC"),
+    collector_type=st.sidebar.selectbox(
+        "Collector Type",
+        ["Flat Plate", "ETC", "Thermosiphon"],
+    ),
+    aperture_area=st.sidebar.number_input(
+        "Aperture Area m²",
+        value=2.0,
+    ),
+    gross_area=st.sidebar.number_input(
+        "Gross Area m²",
+        value=2.2,
+    ),
+    width=st.sidebar.number_input(
+        "Collector Width m",
+        value=1.0,
+    ),
+    height=st.sidebar.number_input(
+        "Collector Height m",
+        value=2.0,
+    ),
+    eta0=st.sidebar.number_input(
+        "η0",
+        value=0.78,
+    ),
+    a1=st.sidebar.number_input(
+        "a1",
+        value=3.5,
+    ),
+    a2=st.sidebar.number_input(
+        "a2",
+        value=0.015,
+    ),
+    rated_flow_per_collector=st.sidebar.number_input(
+        "Flow per Collector LPH",
+        value=50.0,
+    ),
+    tilt_angle=st.sidebar.number_input(
+        "Tilt Angle",
+        value=25.0,
+    ),
 )
 
-it_input = st.sidebar.slider(
-    "Target Model Irradiance Peak (W/m²)",
-    min_value=100,
-    max_value=1200,
-    value=800,
-    step=50
+process = ProcessRequirements(
+    daily_volume_lpd=water,
+    inlet_temp_c=inlet_temp,
+    outlet_temp_c=outlet_temp,
+    ambient_temp_c=ambient_temp,
+    operating_hours=8,
 )
 
-# =========================================================
-# SAFELY EXTRACT & CONSTRUCT BACKGROUND VARIABLES
-# =========================================================
-# This ensures variables are ALWAYS defined outside the UI layout tabs before execution
-active_config = EXPERIMENTAL_REGISTRY[selected_group]
-flow_input = active_config["mean_flow_rate"]
-t_in_input = float(tin)
-t_amb_input = float(ambient_temp)
-aperture_area = 7.2
+# ============================================================
+# CALCULATIONS
+# ============================================================
 
-site_meta = geo_registry[selected_city]
-months_axis = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-computed_radiation_curve = []
-
-for m_idx in range(1, 13):
-    phase_offset = (m_idx - site_meta["peak_month"]) * (np.pi / 6.0)
-    calculated_intensity = site_meta["base_rad"] + site_meta["amplitude"] * np.cos(phase_offset)
-    
-    if m_idx in [6, 7, 8]:
-        monsoon_loss_factor = 0.65 if site_meta["lat"] < 20 else 0.82
-        calculated_intensity *= monsoon_loss_factor
-        
-    computed_radiation_curve.append(float(np.clip(calculated_intensity, 300, 1050)))
-
-# Run internal solver instance securely
-metrics = solve_collector_thermodynamics(
-    flow_rate_lph=flow_input,
-    t_in=t_in_input,
-    it=it_input,
-    t_amb=t_amb_input,
-    ap_area=aperture_area,
-    config_dict=active_config
+field = size_collector_field(
+    process,
+    collector,
+    irradiance,
+    peak_sun_hours,
 )
 
-# =========================================================
-# CONSTANTS
-# =========================================================
+spacing = calculate_spacing(
+    collector.height,
+    collector.tilt_angle,
+    latitude,
+)
 
-cp = 4.186
-module_area = 7.2
-module_output = 22
-safety_factor = 1.15
+finance = financial_analysis(
+    field["total_gross_area"],
+    field["thermal_load"],
+    fuel_cost,
+)
 
-# =========================================================
-# =========================================================
-# CALCULATIONS (DYNAMIC GEOGRAPHICALLY CONSTRAINED)
-# =========================================================
+flow_total = (
+    field["collectors"]
+    * collector.rated_flow_per_collector
+)
 
-# 1. Base Thermodynamic Energy Requirement (kWh/day)
-dt = tout - tin
-energy = (water * cp * dt) / 3600
+# ============================================================
+# TITLE
+# ============================================================
 
-# 2. Extract Latitude-Specific Daily Solar Window
-# We convert the monthly W/m² irradiance curve into an annual baseline factor.
-# Standard panels operate efficiently for approx 5.5 peak sunshine hours a day in India.
-average_annual_irradiance = np.mean(computed_radiation_curve) # W/m²
+st.title("☀ Universal Solar Thermal Proposal Engine")
 
-# 3. Dynamic Module Output Rating based on Regional Radiation
-# Rather than assuming a hardcoded 22 kWh/day everywhere, module performance 
-# scales linearly with local irradiance compared to a standard benchmark of 800 W/m²
-regional_module_output = 22.0 * (average_annual_irradiance / 800.0)
-
-# 4. Sizing Calculations under Environmental Headroom Limits
-gross_energy = energy * safety_factor
-modules = round(gross_energy / regional_module_output)
-
-if modules < 1:
-    modules = 1
-
-area = modules * module_area
-storage_tank_capacity = water * 1.2
-
-# 5. Fluid Dynamics Mapping
-flow_lpm = ((modules / 2) * 250) / 60
-flow_kghr = flow_lpm * 60
-
-# 6. Realized System Efficiency Calculation
-# This now varies dynamically based on the localized collector count and regional sun strength
-efficiency = (energy / (modules * regional_module_output)) * 100
-efficiency = max(35, min(efficiency, 85))
-
-# 7. Annualized Yield Estimates
-annual_energy = gross_energy * 365
-annual_savings = annual_energy * fuel_cost * 0.25
-co2 = annual_energy * 0.82 / 1000
-
-project_cost = area * 14000
-payback = project_cost / annual_savings if annual_savings > 0 else 0
-# PUMP
-# =========================================================
-
-if flow_lpm < 25:
-    pump = "1 HP"
-    pipe = "DN25"
-
-elif flow_lpm < 50:
-    pump = "2 HP"
-    pipe = "DN40"
-
-else:
-    pump = "5 HP"
-    pipe = "DN50"
-
-# =========================================================
+# ============================================================
 # KPI SECTION
-# =========================================================
-
-st.markdown('<div class="section-title">📊 Engineering Summary</div>', unsafe_allow_html=True)
+# ============================================================
 
 c1, c2, c3, c4 = st.columns(4)
 
-with c1:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">THERMAL LOAD</div>
-        <div class="metric-value">{energy:.1f} kWh/day</div>
-    </div>
-    """, unsafe_allow_html=True)
+c1.metric(
+    "Thermal Load",
+    f"{field['thermal_load']:.1f} kWh/day",
+)
 
-with c2:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">SOLAR MODULES</div>
-        <div class="metric-value">{modules}</div>
-    </div>
-    """, unsafe_allow_html=True)
+c2.metric(
+    "Collectors",
+    field["collectors"],
+)
 
-with c3:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">COLLECTOR AREA</div>
-        <div class="metric-value">{area:.1f} m²</div>
-    </div>
-    """, unsafe_allow_html=True)
+c3.metric(
+    "Aperture Area",
+    f"{field['total_aperture_area']:.1f} m²",
+)
 
-with c4:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">FLOW RATE</div>
-        <div class="metric-value">{flow_lpm:.1f} LPM</div>
-    </div>
-    """, unsafe_allow_html=True)
+c4.metric(
+    "Flow Rate",
+    f"{flow_total:.1f} LPH",
+)
 
-# =========================================================
+# ============================================================
 # SECOND ROW
-# =========================================================
+# ============================================================
 
 c5, c6, c7, c8 = st.columns(4)
 
-with c5:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">STORAGE TANK</div>
-        <div class="metric-value">{storage_tank_capacity:.0f} L</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c6:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">SYSTEM EFFICIENCY</div>
-        <div class="metric-value">{efficiency:.1f}%</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c7:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">PUMP SELECTION</div>
-        <div class="metric-value">{pump}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c8:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">PIPE SIZE</div>
-        <div class="metric-value">{pipe}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# =========================================================
-# FINANCIAL SECTION
-# =========================================================
-
-st.markdown('<div class="section-title">💰 Financial Analysis</div>', unsafe_allow_html=True)
-
-f1, f2, f3, f4 = st.columns(4)
-
-with f1:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">PROJECT COST</div>
-        <div class="metric-value">₹ {project_cost:,.0f}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with f2:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">ANNUAL SAVINGS</div>
-        <div class="metric-value">₹ {annual_savings:,.0f}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with f3:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">PAYBACK</div>
-        <div class="metric-value">{payback:.1f} Years</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with f4:
-    st.markdown(f"""
-    <div class="metric-box">
-        <div class="metric-title">CO₂ REDUCTION</div>
-        <div class="metric-value">{co2:.1f} Tons/Yr</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ==============================================================================
-# DATA EXPANSION TABS: ADVANCED CHARTS AND INTERPRETATIONS
-# ==============================================================================
-tab_plots, tab_cross_flow, tab_meta, tab_industrial_scaling = st.tabs([
-    "📈 Performance Curves & Visualizations", 
-    "🔀 Multi-Flow Comparative Analysis", 
-    "🗃️ Experimental Metadata Matrix",
-    "🏭 Industrial P&ID & Deployment Scoping Proposal" 
-])
-
-# ------------------------------------------------------------------------------
-# TAB 1: INDIVIDUAL REGIME GRAPHS
-# ------------------------------------------------------------------------------
-with tab_plots:
-    st.subheader(f"Thermodynamic Response Mapping under {selected_group} LPH Regimes")
-    
-    col_g1, col_g2 = st.columns(2)
-    
-    with col_g1:
-        fig1, ax1 = plt.subplots(figsize=(7, 4))
-        irradiance_sweep = np.linspace(100, 1100, 100)
-        efficiency_sweep = []
-        
-        for irr in irradiance_sweep:
-            res = solve_collector_thermodynamics(flow_input, t_in_input, irr, t_amb_input, aperture_area, active_config)
-            efficiency_sweep.append(res["efficiency_pct"])
-            
-        ax1.plot(irradiance_sweep, efficiency_sweep, color='#FF4B4B', lw=2.5, label='Regressed Efficiency Vector')
-        ax1.axvline(x=it_input, color='#1C83E1', linestyle='--', label=f'Active Input Setpoint ({it_input} W/m²)')
-        ax1.set_title("Instantaneous Efficiency vs Solar Radiation Intensity", fontsize=10, fontweight='bold')
-        ax1.set_xlabel("Solar Irradiance (W/m²)", fontsize=9)
-        ax1.set_ylabel("Efficiency (%)", fontsize=9)
-        ax1.grid(True, linestyle=':', alpha=0.6)
-        ax1.legend(fontsize=8)
-        st.pyplot(fig1)
-        
-    with col_g2:
-        fig2, ax2 = plt.subplots(figsize=(7, 4))
-        flow_sweep_bounds = np.linspace(active_config["min_flow_observed"] - 10, active_config["max_flow_observed"] + 10, 100)
-        delta_t_sweep = []
-        
-        for flw in flow_sweep_bounds:
-            res = solve_collector_thermodynamics(flw, t_in_input, it_input, t_amb_input, aperture_area, active_config)
-            delta_t_sweep.append(res["delta_t"])
-            
-        ax2.plot(flow_sweep_bounds, delta_t_sweep, color='#2BD387', lw=2.5, label='Predicted Thermal Gain')
-        ax2.axvline(x=flow_input, color='#1C83E1', linestyle='--', label=f'Current Setting ({flow_input:.1f} kg/hr)')
-        ax2.set_title("Fluid Temperature Jump vs Mass Flow Spectrum", fontsize=10, fontweight='bold')
-        ax2.set_xlabel("Regulated Flow Rate (kg/hr)", fontsize=9)
-        ax2.set_ylabel("Delta Temperature (°C)", fontsize=9)
-        ax2.grid(True, linestyle=':', alpha=0.6)
-        ax2.legend(fontsize=8)
-        st.pyplot(fig2)
-
-# ------------------------------------------------------------------------------
-# TAB 2: INTER-REGIME CROSS COMPARISONS
-# ------------------------------------------------------------------------------
-with tab_cross_flow:
-    st.subheader("Simultaneous Multi-Regime Operational Sweep Matrix")
-    st.markdown("This matrix tracks predictions concurrently across all 4 configurations for the current setpoints:")
-    
-    comparative_dataset = []
-    for flow_key, configuration in EXPERIMENTAL_REGISTRY.items():
-        sim_res = solve_collector_thermodynamics(
-            flow_rate_lph=configuration["mean_flow_rate"],
-            t_in=t_in_input,
-            it=it_input,
-            t_amb=t_amb_input,
-            ap_area=aperture_area,
-            config_dict=configuration
-        )
-        comparative_dataset.append({
-            "Regime Designation": f"{flow_key} LPH Configuration",
-            "Mean Reference Flow (kg/hr)": f"{configuration['mean_flow_rate']:.2f}",
-            "Modeled Efficiency (%)": f"{sim_res['efficiency_pct']:.2f} %",
-            "Delta Temperature (ΔT)": f"{sim_res['delta_t']:.2f} °C",
-            "Projected Outflow (°C)": f"{sim_res['temp_out']:.2f} °C",
-            "Thermal Energy Output (W)": f"{sim_res['energy_output_w']:.1f} W"
-        })
-        
-    st.table(pd.DataFrame(comparative_dataset))
-    
-    fig3, ax3 = plt.subplots(figsize=(14, 4.5))
-    reduced_temp_axis = np.linspace(0.01, 0.25, 150)
-    colors_palette = {100: '#E63946', 200: '#F4A261', 300: '#2A9D8F', 400: '#1D3557'}
-    
-    for flow_key, configuration in EXPERIMENTAL_REGISTRY.items():
-        eta = configuration["intercept_eta0"] - configuration["loss_coeff_a1"] * reduced_temp_axis - configuration["loss_coeff_a2"] * (reduced_temp_axis**2) * 500
-        eta_bounded = np.clip(eta * 100.0, 0, 100)
-        ax3.plot(reduced_temp_axis, eta_bounded, label=f"{flow_key} LPH Efficiency Envelope", color=colors_palette[flow_key], lw=2)
-        
-    t_mean_current = t_in_input + (metrics["delta_t"] / 2.0)
-    current_x_pos = (t_mean_current - t_amb_input) / (it_input if it_input > 0 else 1.0)
-    
-    if it_input > 0:
-        ax3.plot(current_x_pos, metrics["efficiency_pct"], 'ko', markersize=10, label=f"Active Simulation Coordinate ({current_x_pos:.4f}, {metrics['efficiency_pct']:.1f}%)")
-        
-    ax3.set_title("Characteristic System Efficiency Envelopes", fontsize=11, fontweight='bold')
-    ax3.set_xlabel("Reduced Temperature Parameter Vector", fontsize=9)
-    ax3.set_ylabel("Collector Efficiency Percentage", fontsize=9)
-    ax3.set_ylim(0, 100)
-    ax3.grid(True, linestyle='--', alpha=0.5)
-    ax3.legend(fontsize=9, loc='upper right')
-    st.pyplot(fig3)
-
-# ------------------------------------------------------------------------------
-# TAB 3: FILE REGISTRY DATA MAPPING
-# ------------------------------------------------------------------------------
-with tab_meta:
-    st.subheader("Target Experimental Data Repositories & Coefficients")
-    st.markdown("The internal logic values utilize coefficients extracted directly from your uploaded data records:")
-    
-    meta_records = []
-    for flow_key, val in EXPERIMENTAL_REGISTRY.items():
-        meta_records.append({
-            "Nominal Group": val["nominal_string"],
-            "Intercept Coeff (eta0)": val["intercept_eta0"],
-            "Linear Loss Factor (a1)": val["loss_coeff_a1"],
-            "Quadratic Loss Factor (a2)": val["loss_coeff_a2"],
-            "Target Rig Log Files": ", ".join(val["associated_files"])
-        })
-    st.dataframe(pd.DataFrame(meta_records), use_container_width=True)
-    
-    st.markdown("### 🔍 Verified Experimental Physics Log Analysis")
-    if selected_group >= 300:
-        st.info(
-            f"⚡ **High Turbulent Transfer Detected ({selected_group} LPH Config):** Operating at high fluid velocities limits fluid residence times "
-            f"within the copper riser circuits. This minimizes the temperature gradient across the insulation, suppressing localized thermal emissions. "
-            f"Result: Instantaneous efficiency curves track higher values, but fluid temperature gains are narrower."
-        )
-    else:
-        st.warning(
-            f"🌡️ **High Thermal Residence Detected ({selected_group} LPH Config):** Low flow velocity settings allow water components to absorb "
-            f"solar heat for longer periods within the header tubes. This drives large absolute temperature rises, but increases convective "
-            f"and radiative heat loss from the collector surface back to the surrounding atmosphere."
-        )
-
-# ------------------------------------------------------------------------------
-# TAB 4: DEPLOYMENT SCOPING PROPOSAL
-# ------------------------------------------------------------------------------
-with tab_industrial_scaling:
-    st.subheader("Industrial Deployment Scoping & Plant Integration Metrics")
-    st.markdown("This scoping proposal validates solar thermal plant requirements across industrial scaling factors:")
-    
-    scaling_factors = [0.5, 1.0, 1.5, 2.0]
-    scoping_data = []
-    for factor in scaling_factors:
-        scaled_water = water * factor
-        scaled_energy = (scaled_water * cp * dt) / 3600
-        scaled_gross = scaled_energy * safety_factor
-        scaled_modules = max(1, round(scaled_gross / module_output))
-        scaled_area = scaled_modules * module_area
-        scaled_cost = scaled_area * 14000
-        
-        scoping_data.append({
-            "Scale Factor": f"{factor}x Design Target",
-            "Sizing Flow (LPD)": f"{scaled_water:,.0f}",
-            "Energy Need (kWh/day)": f"{scaled_energy:.1f}",
-            "Modules Required": scaled_modules,
-            "Aperture Surface (m²)": f"{scaled_area:.1f}",
-            "Est. CapEx (₹)": f"₹ {scaled_cost:,.0f}"
-        })
-    st.dataframe(pd.DataFrame(scoping_data), use_container_width=True)
-
-# =========================================================
-# GAUGE CHART
-# =========================================================
-
-st.markdown('<div class="section-title">🎯 Collector Efficiency Gauge</div>', unsafe_allow_html=True)
-
-fig_gauge = go.Figure(go.Indicator(
-    mode="gauge+number",
-    value=efficiency,
-    title={'text': "Collector Efficiency %"},
-    gauge={
-        'axis': {'range': [0, 100]},
-        'bar': {'color': "#0f52ba"},
-        'steps': [
-            {'range': [0, 40], 'color': "#ffcccc"},
-            {'range': [40, 70], 'color': "#fff2cc"},
-            {'range': [70, 100], 'color': "#d9ead3"}
-        ]
-    }
-))
-
-fig_gauge.update_layout(height=350)
-
-st.plotly_chart(fig_gauge, use_container_width=True)
-
-# =========================================================
-# =========================================================
-# SOLAR RADIATION GRAPH (DYNAMIC GEOGRAPHIC UPDATES)
-# =========================================================
-
-st.markdown('<div class="section-title">☀️ Solar Radiation Analysis</div>', unsafe_allow_html=True)
-
-fig_rad = go.Figure()
-
-fig_rad.add_trace(go.Bar(
-    x=months_axis,
-    y=computed_radiation_curve, # Links directly to your dynamic latitude solver outputs
-    marker_color="#f4a261"
-))
-
-fig_rad.update_layout(
-    title=f"Monthly Solar Radiation Profile for {selected_city}",
-    xaxis_title="Month",
-    yaxis_title="Solar Radiation (W/m²)",
-    height=400
+c5.metric(
+    "Gross Area",
+    f"{field['total_gross_area']:.1f} m²",
 )
 
-st.plotly_chart(fig_rad, use_container_width=True)
-# =========================================================
-# EFFICIENCY CURVE
-# =========================================================
+c6.metric(
+    "Row Pitch",
+    f"{spacing['pitch']:.2f} m",
+)
 
-st.markdown('<div class="section-title">📈 Efficiency Curve</div>', unsafe_allow_html=True)
+c7.metric(
+    "Project Cost",
+    f"₹ {finance['project_cost']:,.0f}",
+)
 
-x = np.linspace(0, 100, 50)
+c8.metric(
+    "Payback",
+    f"{finance['payback']:.1f} Years",
+)
 
-y = 82 - (0.35 * x)
+# ============================================================
+# PERFORMANCE GRAPH
+# ============================================================
 
-fig_eff = go.Figure()
+st.subheader("Collector Efficiency Curve")
 
-fig_eff.add_trace(go.Scatter(
-    x=x,
-    y=y,
-    mode='lines',
-    line=dict(color="#0f52ba", width=4),
-    name="Efficiency"
-))
+x = np.linspace(0, 0.25, 100)
 
-fig_eff.update_layout(
-    title="Collector Efficiency Trend",
-    xaxis_title="Operating Parameter",
+y = (
+    collector.eta0
+    - collector.a1 * x
+    - collector.a2 * (x ** 2) * irradiance
+) * 100
+
+y = np.clip(y, 0, 100)
+
+fig = go.Figure()
+
+fig.add_trace(
+    go.Scatter(
+        x=x,
+        y=y,
+        mode="lines",
+        name="Efficiency",
+    )
+)
+
+fig.update_layout(
+    xaxis_title="Reduced Temperature Parameter",
     yaxis_title="Efficiency %",
-    height=400
+    height=400,
 )
 
-st.plotly_chart(fig_eff, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True)
 
-# =========================================================
-# INDUSTRIAL P&ID (ISA-5.1 STANDARD UPGRADE)
-# =========================================================
+# ============================================================
+# MONTHLY ANALYSIS
+# ============================================================
 
-st.markdown('<div class="section-title">🏭 Industrial P&ID Diagram</div>', unsafe_allow_html=True)
+st.subheader("Monthly Solar Yield")
 
-process_map = {
-    "Dairy Plant": "Pasteurizer",
-    "Textile Industry": "Dyeing Machine",
-    "Pharmaceutical": "Reactor",
-    "Chemical Plant": "Chemical Tank",
-    "Food Processing": "Food Heater"
-}
+months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
 
-process_name = process_map[industry_type]
+monthly_irradiance = [
+    700,
+    750,
+    820,
+    850,
+    880,
+    650,
+    520,
+    500,
+    620,
+    700,
+    720,
+    690,
+]
 
-# Double backslashes (\\n) handle string boundaries securely for Graphviz engines
+monthly_yield = []
+
+for G in monthly_irradiance:
+
+    r = solve_hwb(
+        collector,
+        inlet_temp,
+        ambient_temp,
+        G,
+        flow_total,
+    )
+
+    monthly_yield.append(
+        (
+            r["useful_heat"] / 1000
+        ) * peak_sun_hours * field["collectors"]
+    )
+
+monthly_df = pd.DataFrame(
+    {
+        "Month": months,
+        "Yield": monthly_yield,
+    }
+)
+
+fig2 = px.bar(
+    monthly_df,
+    x="Month",
+    y="Yield",
+    title="Monthly Solar Thermal Output",
+)
+
+st.plotly_chart(fig2, use_container_width=True)
+
+# ============================================================
+# LAYOUT SECTION
+# ============================================================
+
+st.subheader("Solar Field Layout")
+
+collectors_per_row = 5
+n_rows = math.ceil(field["collectors"] / collectors_per_row)
+
+layout_text = ""
+
+counter = 1
+
+for r in range(n_rows):
+
+    layout_text += f"Row {r+1}: "
+
+    for _ in range(collectors_per_row):
+
+        if counter <= field["collectors"]:
+            layout_text += f"[C{counter}] "
+            counter += 1
+
+    layout_text += "\n\n"
+
+st.code(layout_text)
+
+# ============================================================
+# P&ID SECTION
+# ============================================================
+
+st.subheader("Industrial Integration Diagram")
+
 pid = f"""
 digraph G {{
-    rankdir=LR;
-    nodesep=0.6;
-    ranksep=0.7;
-    
-    // Piping Flow Lines
-    edge [fontname="Arial", fontsize=9, color="#2c3e50", penwidth=1.5, arrowhead=normal, arrowsize=0.8];
-    // Equipment Base Nodes
-    node [fontname="Arial", fontsize=10, shape=box, style="filled,bold", fillcolor="#ffffff", color="#2c3e50", penwidth=1.5];
+rankdir=LR;
 
-    Tank [
-        label="TK-101\\nThermal Buffer Tank\\n{storage_tank_capacity:.0f} L"
-        shape=cylinder
-        fillcolor="#fff9db"
-        color="#f59f00"
-        height=1.4
-        width=1.0
-    ];
+Tank [label="Buffer Tank"];
+Pump [label="Solar Pump"];
+Collector [label="Solar Collector Field"];
+HX [label="Heat Exchanger"];
+Boiler [label="Existing Boiler"];
+Process [label="{industry} Process"];
 
-    Pump [
-        label="P-101A\\nLoop Pump\\n{pump}"
-        shape=circle
-        fillcolor="#e2f0d9"
-        color="#385723"
-        fixedsize=true
-        width=1.1
-    ];
-
-    Collector [
-        label="⚡\\nSOLAR FIELD ARRAY\\n{modules} Manifold Modules\\n({area:.1f} m²)"
-        shape=box3d
-        fillcolor="#fce8e6"
-        color="#c00000"
-        margin="0.2,0.1"
-    ];
-
-    Boiler [
-        label="BLR-01\\nAuxiliary Boiler\\n({fuel_type})"
-        shape=component
-        fillcolor="#f3f0ff"
-        color="#7048e8"
-        height=1.2
-    ];
-
-    HX [
-        label="HX-101\\nPlate Heat Exchanger"
-        shape=diamond
-        fillcolor="#e6f4ea"
-        color="#137333"
-        fixedsize=true
-        width=1.3
-        height=1.3
-    ];
-
-    Process [
-        label="🏭\\nPROCESS END-USE\\n{process_name}\\nTarget: {tout}°C"
-        shape=house
-        fillcolor="#fbf1f5"
-        color="#d0146f"
-        margin="0.2,0.1"
-    ];
-
-    // Node Port Routing Rules (:w,:e,:n,:s) preventing orthogonal overlap detours
-    Tank:s -> Pump:w [label=" Suction Line", weight=2];
-    Pump:e -> Collector:w [label=" Cold Feed\\n {flow_lpm:.1f} LPM"];
-    Collector:e -> HX:n [label=" Hot Glycol\\n Return"];
-    
-    HX:s -> Tank:n [label=" Secondary Thermal\\n Charge Loop", color="#1c7ed6", penwidth=2.0];
-    
-    Tank:e -> Process:w [label=" Hot Water Supply\\n Delivery", color="#e03131", penwidth=2.0];
-    Boiler:e -> HX:w [label=" High-Temp\\n Top-up Request", style=dashed, color="#7048e8"];
-    HX:e -> Boiler:s [label=" Return", style=dashed, color="#7048e8"];
-    
-    Process:s -> Tank:w [label=" Low-Temp Residual\\n Recirculation Return", color="#748ffc"];
+Tank -> Pump;
+Pump -> Collector;
+Collector -> HX;
+HX -> Tank;
+Tank -> Process;
+Boiler -> HX;
 }}
 """
 
-st.graphviz_chart(pid, use_container_width=True)
+st.graphviz_chart(pid)
 
-# =========================================================
-# DATA TABLE
-# =========================================================
+# ============================================================
+# FINANCIAL TABLE
+# ============================================================
 
-st.markdown('<div class="section-title">📋 Proposal Summary</div>', unsafe_allow_html=True)
+st.subheader("Financial Summary")
 
-df = pd.DataFrame({
-    "Parameter": [
-        "Industry",
-        "Water Requirement",
-        "Outlet Temperature",
-        "Inlet Temperature",
-        "Thermal Load",
-        "Solar Modules",
-        "Collector Area",
-        "Tank Capacity",
-        "Flow Rate",
-        "Pump",
-        "Pipe Size",
-        "Project Cost",
-        "Annual Savings",
-        "Payback"
-    ],
+finance_df = pd.DataFrame(
+    {
+        "Parameter": [
+            "Project Cost",
+            "Annual Savings",
+            "Payback",
+            "CO2 Reduction",
+        ],
+        "Value": [
+            f"₹ {finance['project_cost']:,.0f}",
+            f"₹ {finance['annual_savings']:,.0f}",
+            f"{finance['payback']:.1f} Years",
+            f"{finance['co2']:.2f} Tons/year",
+        ],
+    }
+)
 
-    "Value": [
-        industry_type,
-        f"{water} LPD",
-        f"{tout} °C",
-        f"{tin} °C",
-        f"{energy:.1f} kWh/day",
-        modules,
-        f"{area:.1f} m²",
-        f"{storage_tank_capacity:.0f} L",
-        f"{flow_lpm:.1f} LPM",
-        pump,
-        pipe,
-        f"₹ {project_cost:,.0f}",
-        f"₹ {annual_savings:,.0f}",
-        f"{payback:.1f} Years"
-    ]
-})
+st.dataframe(finance_df, use_container_width=True)
 
-st.dataframe(df, use_container_width=True)
-# =========================================================
+# ============================================================
+# PROPOSAL SUMMARY
+# ============================================================
 
+st.subheader("Engineering Proposal Summary")
+
+st.markdown(f"""
+### System Overview
+
+- Industry: {industry}
+- Daily Water Requirement: {water} LPD
+- Required Temperature: {outlet_temp} °C
+- Collector Type: {collector.collector_type}
+- Number of Collectors: {field['collectors']}
+- Total Aperture Area: {field['total_aperture_area']:.1f} m²
+- Total Gross Area: {field['total_gross_area']:.1f} m²
+- Estimated Payback: {finance['payback']:.1f} Years
+
+### Integration Notes
+
+- Solar field connected through heat exchanger
+- Existing boiler used for backup heating
+- Differential temperature controller recommended
+- Install expansion tank and pressure relief valve
+- Use insulated piping throughout plant
+- Provide maintenance corridor between collector rows
+""")
+
+# ============================================================
 # FOOTER
-# =========================================================
+# ============================================================
 
-st.markdown("---")
+st.success("✅ Universal Solar Thermal Proposal Generated Successfully")
 
-st.success("✅ Industrial Solar Water Heating Proposal Generated Successfully")
+# ============================================================
+# ADVANCED ENGINEERING SECTION
+# ============================================================
+
+st.subheader("Advanced Engineering Analysis")
+
+reynolds = (flow_total / 3600) * 25
+
+if reynolds < 2300:
+    flow_regime = "Laminar"
+else:
+    flow_regime = "Turbulent"
+
+pipe_velocity = flow_total / 3600 / 0.003
+
+pressure_drop = 0.02 * (50 / 0.05) * ((1000 * pipe_velocity**2) / 2)
+
+pump_head = pressure_drop / (1000 * 9.81)
+
+eng_df = pd.DataFrame(
+    {
+        "Parameter": [
+            "Reynolds Number",
+            "Flow Regime",
+            "Pipe Velocity",
+            "Pressure Drop",
+            "Pump Head",
+        ],
+        "Value": [
+            f"{reynolds:.0f}",
+            flow_regime,
+            f"{pipe_velocity:.2f} m/s",
+            f"{pressure_drop:.2f} Pa",
+            f"{pump_head:.2f} m",
+        ],
+    }
+)
+
+st.dataframe(eng_df, use_container_width=True)
+
+# ============================================================
+# HEAT EXCHANGER SECTION
+# ============================================================
+
+st.subheader("Heat Exchanger Sizing")
+
+lmtd = (
+    ((outlet_temp - ambient_temp) - (inlet_temp - ambient_temp))
+    / np.log(
+        ((outlet_temp - ambient_temp) + 0.01)
+        / ((inlet_temp - ambient_temp) + 0.01)
+    )
+)
+
+u_value = 650
+
+hx_area = (
+    field['thermal_load'] * 1000
+) / (u_value * lmtd)
+
+hx_df = pd.DataFrame(
+    {
+        "Parameter": [
+            "LMTD",
+            "Overall Heat Transfer Coefficient",
+            "Heat Exchanger Area",
+        ],
+        "Value": [
+            f"{lmtd:.2f} °C",
+            f"{u_value} W/m²K",
+            f"{hx_area:.2f} m²",
+        ],
+    }
+)
+
+st.dataframe(hx_df, use_container_width=True)
+
+# ============================================================
+# STORAGE TANK SECTION
+# ============================================================
+
+st.subheader("Storage Tank Design")
+
+storage_factor = 1.2
+
+storage_volume = water * storage_factor
+
+expansion_volume = storage_volume * 0.05
+
+st.markdown(f"""
+### Tank Recommendations
+
+- Recommended Storage Tank Volume: {storage_volume:.0f} Liters
+- Recommended Expansion Tank Volume: {expansion_volume:.0f} Liters
+- Recommended Insulation Thickness: 75 mm Mineral Wool
+- Recommended Tank Material: SS304 / SS316
+- Suggested Orientation: Vertical Cylindrical
+""")
+
+# ============================================================
+# SOLAR FRACTION ANALYSIS
+# ============================================================
+
+st.subheader("Solar Fraction Analysis")
+
+collector_range = np.arange(1, field['collectors'] + 10)
+
+solar_fraction = []
+
+for c in collector_range:
+
+    sf = min(100, (c / field['collectors']) * 100)
+
+    solar_fraction.append(sf)
+
+sf_df = pd.DataFrame(
+    {
+        "Collectors": collector_range,
+        "Solar Fraction": solar_fraction,
+    }
+)
+
+fig_sf = px.line(
+    sf_df,
+    x="Collectors",
+    y="Solar Fraction",
+    title="Solar Fraction vs Number of Collectors",
+)
+
+st.plotly_chart(fig_sf, use_container_width=True)
+
+# ============================================================
+# PAYBACK ANALYSIS
+# ============================================================
+
+st.subheader("Payback Sensitivity")
+
+fuel_escalation = np.arange(0.02, 0.12, 0.01)
+
+paybacks = []
+
+for esc in fuel_escalation:
+
+    annual_save = finance['annual_savings'] * (1 + esc)
+
+    pb = finance['project_cost'] / annual_save
+
+    paybacks.append(pb)
+
+pb_df = pd.DataFrame(
+    {
+        "Fuel Escalation": fuel_escalation * 100,
+        "Payback": paybacks,
+    }
+)
+
+fig_pb = px.line(
+    pb_df,
+    x="Fuel Escalation",
+    y="Payback",
+    title="Payback vs Fuel Escalation",
+)
+
+st.plotly_chart(fig_pb, use_container_width=True)
+
+# ============================================================
+# LAND AREA ESTIMATION
+# ============================================================
+
+st.subheader("Land Area Estimation")
+
+maintenance_factor = 1.35
+
+land_area = field['total_gross_area'] * maintenance_factor
+
+st.info(
+    f"Estimated Total Installation Area Required = {land_area:.2f} m²"
+)
+
+# ============================================================
+# CONTROL STRATEGY
+# ============================================================
+
+st.subheader("Recommended Control Philosophy")
+
+control_points = [
+    "Differential temperature controller between collector and tank",
+    "PT100 sensors at collector outlet and tank inlet",
+    "Motorized bypass valve for overheating protection",
+    "Expansion tank pressure monitoring",
+    "Low flow alarm for pump protection",
+    "Dry run protection for circulation pump",
+    "Automatic backup boiler interlock",
+]
+
+for p in control_points:
+    st.markdown(f"- {p}")
+
+# ============================================================
+# INDUSTRY SPECIFIC RECOMMENDATIONS
+# ============================================================
+
+st.subheader("Industry Specific Integration")
+
+if industry == "Dairy":
+    st.warning(
+        "Use CIP-compatible SS316 piping and hygienic heat exchangers."
+    )
+
+elif industry == "Textile":
+    st.warning(
+        "Provide continuous thermal buffer for process stability."
+    )
+
+elif industry == "Pharmaceutical":
+    st.warning(
+        "Use sterile closed loop with insulated SS316L piping."
+    )
+
+elif industry == "Food":
+    st.warning(
+        "Use food-grade insulated piping and sanitary fittings."
+    )
+
+elif industry == "Chemical":
+    st.warning(
+        "Provide corrosion-resistant heat exchanger and glycol loop."
+    )
+
+# ============================================================
+# PIPE SIZING
+# ============================================================
+
+st.subheader("Pipe Sizing Recommendations")
+
+if flow_total < 500:
+    pipe_size = "25 NB"
+elif flow_total < 1500:
+    pipe_size = "40 NB"
+else:
+    pipe_size = "65 NB"
+
+pipe_df = pd.DataFrame(
+    {
+        "Parameter": [
+            "Recommended Pipe Size",
+            "Recommended Material",
+            "Recommended Insulation",
+        ],
+        "Value": [
+            pipe_size,
+            "GI / Copper / SS304",
+            "Nitrile Rubber / Mineral Wool",
+        ],
+    }
+)
+
+st.dataframe(pipe_df, use_container_width=True)
+
+# ============================================================
+# ENERGY FLOW SANKEY SUBSTITUTE
+# ============================================================
+
+st.subheader("Energy Distribution")
+
+energy_df = pd.DataFrame(
+    {
+        "Section": [
+            "Solar Collection",
+            "Pipe Losses",
+            "Tank Losses",
+            "Useful Process Heat",
+        ],
+        "Energy": [
+            100,
+            8,
+            5,
+            87,
+        ],
+    }
+)
+
+fig_energy = px.pie(
+    energy_df,
+    names="Section",
+    values="Energy",
+    title="Thermal Energy Distribution",
+)
+
+st.plotly_chart(fig_energy, use_container_width=True)
+
+# ============================================================
+# DETAILED BOM
+# ============================================================
+
+st.subheader("Bill Of Materials")
+
+bom = pd.DataFrame(
+    {
+        "Component": [
+            "Solar Collectors",
+            "Solar Pump",
+            "Heat Exchanger",
+            "Expansion Tank",
+            "Storage Tank",
+            "Piping",
+            "Insulation",
+            "Control Panel",
+            "Sensors",
+            "Support Structure",
+        ],
+        "Quantity": [
+            field['collectors'],
+            2,
+            1,
+            1,
+            1,
+            "As Required",
+            "As Required",
+            1,
+            8,
+            field['collectors'],
+        ],
+    }
+)
+
+st.dataframe(bom, use_container_width=True)
+
+# ============================================================
+# FINAL DESIGN NOTES
+# ============================================================
+
+st.subheader("Engineering Design Notes")
+
+notes = [
+    "Provide south-facing collector orientation.",
+    "Tilt angle should be optimized based on latitude.",
+    "Provide proper hydraulic balancing for collector rows.",
+    "Install air vent at highest point of collector circuit.",
+    "Provide pressure relief valve at hot loop.",
+    "Use weatherproof insulation for outdoor piping.",
+    "Perform hydrotest before commissioning.",
+    "Provide maintenance corridor between collector rows.",
+    "Use VFD-controlled pump for flow optimization.",
+]
+
+for n in notes:
+    st.markdown(f"- {n}")
+
+# ============================================================
+# DOWNLOAD REPORT PLACEHOLDER
+# ============================================================
+
+st.subheader("Proposal Export")
+
+st.download_button(
+    label="Download Proposal Summary",
+    data=finance_df.to_csv(index=False),
+    file_name="solar_proposal_summary.csv",
+    mime="text/csv",
+)
+
+# ============================================================
+# END OF APPLICATION
+# ============================================================
+
+st.success("🚀 Industrial Solar Thermal Engineering Platform Ready")
